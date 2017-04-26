@@ -12,6 +12,8 @@ We prefer to use eclipse to build the project (import an existing Maven project)
 
 The current supported Java version is 1.8. If encounters problems, please try to downgrade to Java 1.7 (soot-trunk.jar needs to be updated accordingly).
 
+Add graphs.jar and soot-trunk.jar to build path.
+
 # Configuration
 Main method arguments: path-to-config.txt
 
