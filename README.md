@@ -14,6 +14,11 @@ The current supported Java version is 1.8. If encounters problems, please try to
 
 Add graphs.jar and soot-trunk.jar to build path.
 
+# Generate the classlist.txt
+Step1: java -jar soot-trunk.jar -android-jars path-to-parentFolderOfandroid--1 -src-prec apk -f J -process-dir path-to-XXX.apk -allow-phantom-refs
+
+Step2: read the names of all the generated files in sootOutput and write them to classlist.txt
+
 # Configuration
 Main method arguments: path-to-config.txt
 
