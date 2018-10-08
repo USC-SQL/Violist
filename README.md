@@ -7,6 +7,12 @@ This version contains a precise interpreter. The unknown values are marked with 
 # Run
 java -jar Violist.jar example/config.txt
 
+Or
+JavaAndroid ja = new JavaAndroid(androidJar,apkFolder,classlist,apkName,target,loopItr);
+ja.getInterpretedValues();
+
+Note: The parameter target is a Map<String,List<String>> mapping the target method signiture to the target parameter indices
+
 # Build
 We prefer to use eclipse to build the project (import an existing Maven project).
 
@@ -26,7 +32,7 @@ Structure of config.txt:
 
 path-to-parent-folder-of-android--1      (android--1 contains an android.jar)
 
-path-to-parent-folder-of-apk--1 
+path-to-parent-folder-of-apk
 
 apkName.apk
 
