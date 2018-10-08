@@ -49,7 +49,8 @@ public class JavaAndroid {
 	private Map<String,List<Integer>> targetSignature;
 	private int maxloop;
 	private Map<String, Set<Variable>> output = new HashMap<>();
-	private Map<String,ReachingDefinition> rds = new HashMap();
+	private Map<String, Set<String>> analysisResult = new HashMap<>();
+ 	private Map<String,ReachingDefinition> rds = new HashMap();
 	private Map<String,CFGInterface> cfgs = new HashMap();
 	public JavaAndroid(String rtjar,String appfolder,String classlist,String apk,Map<String,List<Integer>> targetSignature, int maxloop)
 	{		
@@ -294,6 +295,8 @@ public class JavaAndroid {
     				result.append("Nth String Parameter: " + hotspot[3]+"\n");
     				System.out.println("Jimple: "+ hotspot[4]);
     				result.append("Jimple: "+ hotspot[4]+"\n");
+
+    				Set<String> possibleValues = new HashSet<>();
     				for(Variable targetIR : newIR)
     				{
     					System.out.println("IR:"+targetIR);
@@ -303,6 +306,7 @@ public class JavaAndroid {
     						String replace = intpValue.trim().replaceAll("\\\\'","'");
     						System.out.println("Value:"+replace);
     						result.append("Value:"+replace+"\n");
+    						possibleValues.add(replace);
     						//if(replace.toLowerCase().startsWith("insert")||replace.toLowerCase().startsWith("update"))
     						
     						//	QueryParser.parseSQL(replace);
@@ -311,7 +315,8 @@ public class JavaAndroid {
     				}
     					
     				System.out.println();
-	    			
+    				//Method Signature@Bytecode Offset@Parameter Index
+	    			analysisResult.put(hotspot[0]+"@"+hotspot[2]+"@"+hotspot[3],possibleValues);
 	    			
 		    		try
 		    		{
@@ -571,9 +576,13 @@ public class JavaAndroid {
     	System.out.println("Total Trans: "+ totalTranslate);
     	System.out.println("Total Interp: "+ totalInterpret);
 	}
-	public Map<String, Set<Variable>> getResult()
+	public Map<String, Set<Variable>> getIRs()
 	{
 		return output;
+	}
+	public Map<String, Set<String>> getInterpretedValues()
+	{
+		return analysisResult;
 	}
 	
 	public Map<String,ReachingDefinition> getReachingDefinition()
