@@ -5,10 +5,11 @@ A String analysis framework for Java and Android apps
 This version contains a precise interpreter. The unknown values are marked with placeholders (@Uknown@METHOD,etc). They can be treated as any string, i.e., .*
 
 # Run
-java -jar Violist.jar example/config.txt
+Command line: java -jar Violist.jar example/config.txt
 
-Or
+Code:
 JavaAndroid ja = new JavaAndroid(androidJar,apkFolder,classlist,apkName,target,loopItr);
+
 ja.getInterpretedValues();
 
 Note: The parameter target is a Map<String,List<String>> mapping the target method signiture to the target parameter indices
