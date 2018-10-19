@@ -12,8 +12,9 @@ JavaAndroid ja = new JavaAndroid(androidJar,apkFolder,classlist,apkName,target,l
 
 ja.getInterpretedValues();
 
-Note: The parameter target is a Map<String,List\<Integer\>> mapping the target method signiture to the target parameter indices.
-  The output of ja.getInterpretedValues() is a Map<String,List\<String\>> mapping a string with format *method_signature@bytecode_offset@parameter_index* to a set of strings. The key uniquely represents a target string variable, which is passed to line *bytecode_offset* of the method *method_signature* as the *parameter_index_th* parameter. The value represents the possible values of the string.
+Note: The parameter target is a Map<String,List\<Integer\>> mapping the target method signiture to the n_th string parameter. For example, the signature can be <LoggerLib.Logger: void reportString(java.lang.String, java.lang.Object, java.lang.String)>, the parameters can be <1,2>, representing the first and the second parameters that are string.
+
+  The output of ja.getInterpretedValues() is a Map<String,List\<String\>> mapping a string with format *method_signature@bytecode_offset@n_th_string_parameter* to a set of strings. The key uniquely represents a target string variable, which is passed to line *bytecode_offset* of the method *method_signature* as the *n_th_string_parameter*. The value represents the possible values of the string.
   
 # Build
 We prefer to use eclipse to build the project (import an existing Maven project).
