@@ -1,6 +1,5 @@
-parentFolderOfandroid--1=example
+androidJarPath=example
 parentFolderOfApk=example/App183
 apkName=com.a1.quiz.asvab.free.instrumented.apk
-classlist=classlist.txt
 loopUnraveledTime=1
 <LoggerLib.Logger: void reportString(java.lang.String,java.lang.String)>@1

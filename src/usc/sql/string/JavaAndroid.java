@@ -7,27 +7,19 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Stack;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
 
 import CallGraph.NewNode;
+import CallGraph.StringCallGraph;
 import SootEvironment.AndroidApp;
 import SootEvironment.JavaApp;
-import soot.ResolutionFailedException;
-import soot.SootMethod;
-import soot.Unit;
-import soot.ValueBox;
+import soot.*;
 import soot.jimple.Stmt;
 import soot.jimple.internal.ImmediateBox;
+import soot.jimple.toolkits.callgraph.CHATransformer;
+import soot.jimple.toolkits.callgraph.CallGraph;
+import soot.util.Chain;
 import usc.sql.ir.ConstantInt;
 import usc.sql.ir.ConstantString;
 import usc.sql.ir.Expression;
@@ -52,12 +44,14 @@ public class JavaAndroid {
 	private Map<String, Set<String>> analysisResult = new HashMap<>();
  	private Map<String,ReachingDefinition> rds = new HashMap();
 	private Map<String,CFGInterface> cfgs = new HashMap();
+	private StringCallGraph callGraph;
 	public JavaAndroid(String rtjar,String appfolder,String classlist,String apk,Map<String,List<Integer>> targetSignature, int maxloop)
 	{		
 		this.targetSignature = targetSignature;
 		this.maxloop = maxloop;
 		AndroidApp App=new AndroidApp(rtjar,appfolder+apk,appfolder+classlist);
-		InterpretCheckerAndroid(App,appfolder+"/MethodSummary/",appfolder+"/Output/");
+		this.callGraph = App.getCallgraph();
+		InterpretCheckerAndroid(appfolder);
 		
 	}
 	public JavaAndroid(String rtjar,String appfolder,String classlist,Map<String,List<Integer>> targetSignature, int maxloop)
@@ -67,14 +61,45 @@ public class JavaAndroid {
 		InterpretCheckerJava(rtjar,appfolder,appfolder+classlist,
 				appfolder+"/MethodSummary/",appfolder+"/Output/");
 	}
-	public JavaAndroid(AndroidApp App, String appfolder, Map<String,List<Integer>> targetSignature, int maxloop)
+	public JavaAndroid(Map<String,List<Integer>> targetSignature, int maxloop, String outputPath)
 	{
 		this.targetSignature = targetSignature;
+		this.callGraph = createCallGraph();
 		this.maxloop = maxloop;
-		InterpretCheckerAndroid(App,appfolder+"/MethodSummary/",appfolder+"/Output/");
+		InterpretCheckerAndroid(outputPath);
 	}
-
-	private void InterpretCheckerAndroid(AndroidApp App,String summaryFolder,String wfolder)
+	public JavaAndroid(StringCallGraph callGraph,Map<String,List<Integer>> targetSignature, int maxloop)
+	{
+		this.callGraph = callGraph;
+		this.targetSignature = targetSignature;
+		this.maxloop = maxloop;
+	}
+	private StringCallGraph createCallGraph()
+	{
+		Chain<SootClass> classes =  Scene.v().getApplicationClasses();
+		List<SootMethod> entryPoints = new ArrayList<>();
+		Set<SootMethod> allMethods = new HashSet<>();
+		for(Iterator<SootClass> iter = classes.iterator(); iter.hasNext();)
+		{
+			SootClass sc = iter.next();
+			if(!sc.getName().startsWith("android.support.v4"))
+            {
+                sc.setApplicationClass();
+                allMethods.addAll(sc.getMethods());
+            }
+			for(SootMethod sm: sc.getMethods()){
+				if(sm.isConcrete())
+					entryPoints.add(sm);
+			}
+		}
+		Scene.v().loadNecessaryClasses();
+		Scene.v().setEntryPoints(entryPoints);
+		CHATransformer.v().transform();
+		CallGraph cg = Scene.v().getCallGraph();
+		StringCallGraph callgraph = new StringCallGraph(cg, allMethods);
+		return callgraph;
+	}
+	private void InterpretCheckerAndroid(String outputPath)
 	{
 		
 		
@@ -83,24 +108,16 @@ public class JavaAndroid {
     	Map<String,Set<String>> fieldMap = new HashMap<>();
 		Map<String,Translator> tMap = new HashMap<>();
 		long totalTranslate = 0,totalInterpret = 0;
-		
-		
-		
-		 File sFolder = new File(summaryFolder);
-		 File wFolder = new File(wfolder);
+
+		String summaryFolder = "MethodSummary/";
+		File sFolder = new File(summaryFolder);
 		 // if the directory does not exist, create it
 		 if (!sFolder.exists()) {
-		     System.out.println("creating directory: " + sFolder);
-		     boolean result = false;
 		     try{
 		    	 sFolder.mkdir();
-		         result = true;
 		     } 
 		     catch(SecurityException se){
 		    	 System.out.println("Create a folder named : \"MethodSummary\" under the app folder");
-		     }        
-		     if(result) {    
-		         System.out.println("DIR created");  
 		     }
 		 }
 		 else
@@ -112,57 +129,22 @@ public class JavaAndroid {
 			        }
 			    }
 		 }
-		 if (!wFolder.exists()) {
-		     System.out.println("creating directory: " + wFolder);
-		     boolean result = false;
-		     try{
-		    	 wFolder.mkdir();
-		         result = true;
-		     } 
-		     catch(SecurityException se){
-		    	 System.out.println("Create a folder named : \"Output\" under the app folder");
-		     }        
-		     if(result) {    
-		         System.out.println("DIR created");  
-		     }
-		 }
-		 else
-		 {
-			 final File[] files = wFolder.listFiles();
-			 if(files!=null) { //some JVMs return null for empty dirs
-			        for(File f: files) {
-			                f.delete();
-			        }
-			    }
-		 }
 
-		 
 		System.out.println("Target Signatures and parameters: "+targetSignature);
 		
 		long t1,t2;
 		//prune the call graph and only include callers and callees of target APIs
-		App.getCallgraph().setPotentialAPI(identifyRelevant(App,targetSignature.keySet()));
-		
-    	for(CFGInterface cfg:App.getCallgraph().getRTOInterface())
+		callGraph.setPotentialAPI(identifyRelevant(targetSignature.keySet()));
+    	for(CFGInterface cfg:callGraph.getRTOInterface())
     	{
     		
     		String signature=cfg.getSignature();
-    		
-    		//if(signature.equals("<LoggerLib.Logger: void <clinit>()>")||signature.equals("<LoggerLib.Logger: void reportString(java.lang.String,java.lang.String)>"))
-    		//	continue;
-    		
-    		//field																	def missing						
-
-    		
- 
+    		//field																	def missing
     		//if(cfg.getAllNodes().size()>3000)
     			//continue;
-      		
-    		
+
     		//for(int i=1;i<=loopCount;i++)
-    		//{  		
-    		
-    		
+    		//{
     		t1 = System.currentTimeMillis();
     		
     		LayerRegion lll = new LayerRegion(null);
@@ -250,7 +232,7 @@ public class JavaAndroid {
     		for(Entry<String,Set<Variable>> irSignature:enout.getValue().entrySet())
     		{
 	    		t1 = System.currentTimeMillis();
-	    		Set<Variable> newIR = replaceExternal(irSignature.getValue(),signature,paraMap,tMap,App);
+	    		Set<Variable> newIR = replaceExternal(irSignature.getValue(),signature,paraMap,tMap);
 	    		
 	    		//statistic.add(en.getKey()+":"+getWidth(newIR)+" "+getHeight(newIR)+" "+getLoopDepth(newIR)+" "+getLoopCount(newIR)+" "+getExternalCount(newIR));
 	    		
@@ -322,7 +304,7 @@ public class JavaAndroid {
 		    		{
 		    			
 		    			
-		    			PrintWriter bw = new PrintWriter(new FileWriter(wfolder+"result.txt",true));
+		    			PrintWriter bw = new PrintWriter(new FileWriter(outputPath+"result.txt",true));
 		    			//PrintWriter bw = new PrintWriter(new FileWriter(wfolder+en.getKey().replaceAll("\"", "")+".txt",true));
 						bw.println(result);
 		    			
@@ -404,7 +386,7 @@ public class JavaAndroid {
 		 }
 
 
-    	for(CFGInterface cfg:App.getCallgraph().getRTOInterface())
+    	for(CFGInterface cfg:callGraph.getRTOInterface())
     	{
     		//System.out.println(cfg.getSignature());
     		String signature=cfg.getSignature();
@@ -503,7 +485,7 @@ public class JavaAndroid {
     			
     				
 	    		t1 = System.currentTimeMillis();
-	    		Set<Variable> newIR = replaceExternal(en.getValue(),signature,paraMap,tMap,App);
+	    		Set<Variable> newIR = replaceExternal(en.getValue(),signature,paraMap,tMap);
 	    		t2 = System.currentTimeMillis();
 	    		totalTranslate += t2-t1;
 	    		
@@ -575,6 +557,13 @@ public class JavaAndroid {
     	
     	System.out.println("Total Trans: "+ totalTranslate);
     	System.out.println("Total Interp: "+ totalInterpret);
+        final File[] files = sFolder.listFiles();
+        if(files!=null) { //some JVMs return null for empty dirs
+            for(File f: files) {
+                f.delete();
+            }
+        }
+        sFolder.delete();
 	}
 	public Map<String, Set<Variable>> getIRs()
 	{
@@ -659,101 +648,8 @@ public class JavaAndroid {
 		else
 			return v;
 	}
-	private Set<Variable> replaceExternal(Set<Variable> IRs,String signature,Map<String,Set<NodeInterface>> paraMap,Map<String,Translator> tMap,JavaApp App)
-	{
-		
-		boolean existPara = false;
-		for(Variable v:IRs)
-		{
-			if(containPara(v))
-				existPara = true;
-		}
-		if(!existPara)
-			return IRs;
-		else
-		{
-			Set<Variable> vSet = new HashSet<>();
-			for(Variable v: IRs)
-			{
-				if(paraMap.get(signature)==null)
-					vSet.add(v);
-				else
-				{
-					if(App.getCallgraph().getParents(signature).isEmpty())
-						vSet.add(copyVar(v));
-					else
-					{
-						for(String parentSig:App.getCallgraph().getParents(signature))
-						{
-							Set<Variable> newIR = new HashSet<>();
-							for(NodeInterface n:tMap.get(parentSig).getParaMap().get(signature))
-								newIR.addAll(replaceExternal(copyVar(v),n,tMap.get(parentSig)));
-							
-							Set<Variable> copy = new HashSet<>();
-							for(Variable vv:newIR)
-								copy.add(copyVar(vv));
-							vSet.addAll(replaceExternal(copy,parentSig, paraMap, tMap, App));
-						}					
-					}
-					
-				}			
-			}
-			return vSet;
-		}
 
-/*		Set<Variable> vSet = new HashSet<>();
-		for(Variable v: IRs)
-		{
-			if(paraMap.get(signature)==null)
-				vSet.add(v);
-			else
-			{
-				for(NodeInterface n:paraMap.get(signature))
-				{
-	    			Set<Variable> newIR = new HashSet<>();
-	    				if(App.getCallgraph().getParents(signature).isEmpty())
-	    					newIR.add(copyVar(v));
-	    				else
-	    				{
-	    				String parentSig = App.getCallgraph().getParents(signature).iterator().next();
-	    				newIR.addAll(replaceExternal(copyVar(v),n,tMap.get(parentSig)));
-	    				}
-	    			vSet.addAll(newIR);
-	    		}				
-			}			
-		}
-		boolean existPara = false;
-		for(Variable v:vSet)
-		{
-			if(containPara(v))
-				existPara = true;
-		}
-		if(!existPara)
-			return vSet;
-		else
-		{
-			if(App.getCallgraph().getParents(signature).isEmpty())
-				return vSet;
-			else
-			{
-				String parentSig = App.getCallgraph().getParents(signature).iterator().next();
-				if(paraMap.get(parentSig)==null)
-					return vSet;
-				else
-				{
-					Set<Variable> copy = new HashSet<>();
-					for(Variable vv:vSet)
-						copy.add(copyVar(vv));
-					Set<Variable> newIR = new HashSet<>();
-					newIR.addAll(replaceExternal(copy,parentSig, paraMap, tMap, App));
-					return newIR;
-				}
-			}
-		}*/
-		
-	}
-
-	private Set<Variable> replaceExternal(Set<Variable> IRs,String signature,Map<String,Set<NodeInterface>> paraMap,Map<String,Translator> tMap,AndroidApp App)
+	private Set<Variable> replaceExternal(Set<Variable> IRs,String signature,Map<String,Set<NodeInterface>> paraMap,Map<String,Translator> tMap)
 	{
 
 		boolean existPara = false;
@@ -776,11 +672,11 @@ public class JavaAndroid {
 				else
 				{
 					
-					if(App.getCallgraph().getParents(signature).isEmpty())
+					if(callGraph.getParents(signature).isEmpty())
 						vSet.add(copyVar(v));
 					else
 					{
-						for(String parentSig:App.getCallgraph().getParents(signature))
+						for(String parentSig:callGraph.getParents(signature))
 						{
 							Set<Variable> newIR = new HashSet<>();
 							
@@ -795,7 +691,7 @@ public class JavaAndroid {
 										copy.add(copyVar(vv));
 									
 								//	System.out.println(signature);
-									vSet.addAll(replaceExternal(copy,parentSig, paraMap, tMap, App));
+									vSet.addAll(replaceExternal(copy,parentSig, paraMap, tMap));
 									
 								}
 
@@ -925,11 +821,11 @@ public class JavaAndroid {
 		
 		return returnSet;
 	}
-	public Set<String> identifyRelevant(AndroidApp App,Set<String> targetScanList)
+	public Set<String> identifyRelevant(Set<String> targetScanList)
 	{
 		Set<String> targetMethod = new HashSet<>();
-		List<NewNode> rto = App.getCallgraph().getRTOdering();
-		Map<String,NewNode> rtoMap = App.getCallgraph().getRTOMap();
+		List<NewNode> rto = callGraph.getRTOdering();
+		Map<String,NewNode> rtoMap = callGraph.getRTOMap();
 		Set<String> rtoSig = new HashSet<>();
 		for(NewNode n: rto)
 		{
