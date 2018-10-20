@@ -33,13 +33,11 @@ Main method arguments: path-to-config.txt
 
 Structure of config.txt:
 
-path-to-parent-folder-of-android--1      (android--1 contains an android.jar)
+path-to-parent-folder-of-android-8      (android-8 contains an android.jar)
 
 path-to-parent-folder-of-apk
 
 apkName.apk
-
-classlist.txt                            (a list of the names of all the classes)
 
 loopUnraveledTime                        (how many times loops are unraveled)
 
