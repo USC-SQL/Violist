@@ -1,5 +1,12 @@
 # Violist
-A String analysis framework for Java and Android apps
+A String analysis framework for Java and Android apps. More algorithmic details of Violist can be found in our paper:
+
+```
+String analysis for Java and Android applications
+Ding Li, Yingjun Lyu, Mian Wan, and William G. J. Halfond
+In Proceedings of the 2015 10th Joint Meeting on Foundations of Software Engineering (ESEC/FSE 2015). ACM, New York, NY, USA, 661-672.
+http://www-bcf.usc.edu/~halfond/papers/li15fse.pdf
+```
 
 # Current Version
 This version contains a precise interpreter. The unknown values are marked with placeholders (@Uknown@METHOD,etc). They can be treated as any string, i.e., .*
