@@ -68,11 +68,12 @@ public class JavaAndroid {
 		this.maxloop = maxloop;
 		InterpretCheckerAndroid(outputPath);
 	}
-	public JavaAndroid(StringCallGraph callGraph,Map<String,List<Integer>> targetSignature, int maxloop)
+	public JavaAndroid(StringCallGraph callGraph, Map<String,List<Integer>> targetSignature, int maxloop, String outputPath)
 	{
 		this.callGraph = callGraph;
 		this.targetSignature = targetSignature;
 		this.maxloop = maxloop;
+        InterpretCheckerAndroid(outputPath);
 	}
 	private StringCallGraph createCallGraph()
 	{
@@ -130,7 +131,7 @@ public class JavaAndroid {
 			    }
 		 }
 
-		System.out.println("Target Signatures and parameters: "+targetSignature);
+		//System.out.println("Target Signatures and parameters: "+targetSignature);
 		
 		long t1,t2;
 		//prune the call graph and only include callers and callees of target APIs
@@ -223,12 +224,6 @@ public class JavaAndroid {
     	{
     		String signature = enout.getKey();
     		int i1 = signature.indexOf("<"),i2 = signature.indexOf(":");
-    		
-    		
-    		//System.out.println("\n"+signature);
-    		
-
-    		
     		for(Entry<String,Set<Variable>> irSignature:enout.getValue().entrySet())
     		{
 	    		t1 = System.currentTimeMillis();
@@ -257,59 +252,49 @@ public class JavaAndroid {
     			//if(!value.isEmpty())
 	    		//if(!emptyOrContainUnknown(value))  			
 	    		{
-        			
-        			
         			output.put(irSignature.getKey(), newIR);
-        			
-        			
-        			
 	    			String[] hotspot = irSignature.getKey().split("@");
 	    			
 	    			StringBuilder result = new StringBuilder();
 
-    				System.out.println("Method Name: "+ hotspot[0]);
+    				//System.out.println("Method Name: "+ hotspot[0]);
     				result.append("Method Name: "+ hotspot[0]+"\n");
-    				System.out.println("Source Line Number: "+ hotspot[1]);
+    				//System.out.println("Source Line Number: "+ hotspot[1]);
     				result.append("Source Line Number: "+ hotspot[1]+"\n");
-    				System.out.println("Bytecode Offset: "+hotspot[2]);
+    				//System.out.println("Bytecode Offset: "+hotspot[2]);
     				result.append("Bytecode Offset: "+hotspot[2]+"\n");
-    				System.out.println("Nth String Parameter: " + hotspot[3]);
+    				//System.out.println("Nth String Parameter: " + hotspot[3]);
     				result.append("Nth String Parameter: " + hotspot[3]+"\n");
-    				System.out.println("Jimple: "+ hotspot[4]);
+    				//System.out.println("Jimple: "+ hotspot[4]);
     				result.append("Jimple: "+ hotspot[4]+"\n");
 
     				Set<String> possibleValues = new HashSet<>();
     				for(Variable targetIR : newIR)
     				{
-    					System.out.println("IR:"+targetIR);
+    					//System.out.println("IR:"+targetIR);
     					result.append("IR:"+targetIR+"\n");
     					for(String intpValue: targetIR.getInterpretedValue())
     					{
     						String replace = intpValue.trim().replaceAll("\\\\'","'");
-    						System.out.println("Value:"+replace);
+    						//System.out.println("Value:"+replace);
     						result.append("Value:"+replace+"\n");
     						possibleValues.add(replace);
-    						//if(replace.toLowerCase().startsWith("insert")||replace.toLowerCase().startsWith("update"))
-    						
-    						//	QueryParser.parseSQL(replace);
-    						
     					}
     				}
-    					
-    				System.out.println();
+    				//System.out.println();
     				//Method Signature@Bytecode Offset@Parameter Index
 	    			analysisResult.put(hotspot[0]+"@"+hotspot[2]+"@"+hotspot[3],possibleValues);
 	    			
 		    		try
 		    		{
-		    			
-		    			
-		    			PrintWriter bw = new PrintWriter(new FileWriter(outputPath+"result.txt",true));
-		    			//PrintWriter bw = new PrintWriter(new FileWriter(wfolder+en.getKey().replaceAll("\"", "")+".txt",true));
-						bw.println(result);
-		    			
-		    			bw.flush();
-		    			bw.close();
+		    			if(outputPath != null) {
+                            PrintWriter bw = new PrintWriter(new FileWriter(outputPath + "result.txt", true));
+                            //PrintWriter bw = new PrintWriter(new FileWriter(wfolder+en.getKey().replaceAll("\"", "")+".txt",true));
+                            bw.println(result);
+
+                            bw.flush();
+                            bw.close();
+                        }
 		    		}
 		    		catch(IOException e)
 		    		{
