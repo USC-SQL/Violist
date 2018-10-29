@@ -1,4 +1,4 @@
-androidJarPath=example
+androidJarPath=example/android-8
 parentFolderOfApk=example/App183
 apkName=com.a1.quiz.asvab.free.instrumented.apk
 loopUnraveledTime=1

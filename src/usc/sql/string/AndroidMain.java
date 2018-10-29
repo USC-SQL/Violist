@@ -58,7 +58,7 @@ public class AndroidMain {
                 "-process-multiple-dex",
                 "-process-dir", apkPath,
                 "-src-prec", "apk",
-                "-cp", androidJarPath
+                "-force-android-jar", androidJarPath
         };
 		// Create the phase and add it to the pack
 		Pack pack = PackManager.v().getPack(packName);
