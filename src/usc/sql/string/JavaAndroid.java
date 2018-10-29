@@ -73,7 +73,7 @@ public class JavaAndroid {
 		this.callGraph = callGraph;
 		this.targetSignature = targetSignature;
 		this.maxloop = maxloop;
-        InterpretCheckerAndroid(outputPath);
+		InterpretCheckerAndroid(outputPath);
 	}
 	private StringCallGraph createCallGraph()
 	{
@@ -102,8 +102,6 @@ public class JavaAndroid {
 	}
 	private void InterpretCheckerAndroid(String outputPath)
 	{
-		
-		
 		Map<String,Map<String,Set<Variable>>> targetMap = new HashMap<>();
     	Map<String,Set<NodeInterface>> paraMap = new HashMap<>();
     	Map<String,Set<String>> fieldMap = new HashMap<>();
@@ -300,17 +298,20 @@ public class JavaAndroid {
 		    		{
 		    			e.printStackTrace();
 		    		}
-		    		
-	    		 	
-
-		    		
 	    		}
 
 	    	}
     	}
     	
-    	System.out.println("Total Trans: "+ totalTranslate);
-    	System.out.println("Total Interp: "+ totalInterpret);
+    	//System.out.println("Total Trans: "+ totalTranslate);
+    	//System.out.println("Total Interp: "+ totalInterpret);
+		final File[] files = sFolder.listFiles();
+		if(files!=null) { //some JVMs return null for empty dirs
+			for(File f: files) {
+				f.delete();
+			}
+		}
+		sFolder.delete();
 	}
 	
 	
@@ -448,13 +449,6 @@ public class JavaAndroid {
     		totalTranslate+=t2-t1;
     	
     	}
-    	
-	
-    	
-		
-    	
-   
-		
 		
     	for(Entry<String,Map<String,Set<Variable>>> enout: targetMap.entrySet())
     	{
@@ -543,9 +537,9 @@ public class JavaAndroid {
     	System.out.println("Total Trans: "+ totalTranslate);
     	System.out.println("Total Interp: "+ totalInterpret);
         final File[] files = sFolder.listFiles();
-        if(files!=null) { //some JVMs return null for empty dirs
+		if(files!=null) { //some JVMs return null for empty dirs
             for(File f: files) {
-                f.delete();
+				f.delete();
             }
         }
         sFolder.delete();
@@ -855,7 +849,7 @@ public class JavaAndroid {
 			}
 			
 		}
-		System.out.println("Methods contain target APIs: "+ targetMethod.size());
+		//System.out.println("Methods contain target APIs: "+ targetMethod.size());
 		Stack<String> processMethod = new Stack<>();
 		processMethod.addAll(targetMethod);
 		//topo
@@ -895,7 +889,7 @@ public class JavaAndroid {
 			}
 
 		}
-		System.out.println("Target methods and callees: "+ targetMethod.size());
+		//System.out.println("Target methods and callees: "+ targetMethod.size());
 		
 		for(NewNode n: rto)
 		{
@@ -933,7 +927,7 @@ public class JavaAndroid {
 			}
 			
 		}
-		System.out.println("Target methods and callers and callees: "+ targetMethod.size());
+		//System.out.println("Target methods and callers and callees: "+ targetMethod.size());
 		Set<String> targetClass = new HashSet<>();
 		for(String sig: targetMethod)
 		{
@@ -953,7 +947,7 @@ public class JavaAndroid {
 			}
 				
 		}
-		System.out.println("Total Target Method including constructor: "+ targetMethod.size());
+		//System.out.println("Total Target Method including constructor: "+ targetMethod.size());
 		return targetMethod;
 	}
 	
