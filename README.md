@@ -24,16 +24,9 @@ Note: The parameter target is a Map<String,List\<Integer\>> mapping the target m
   The output of ja.getInterpretedValues() is a Map<String,List\<String\>> mapping a string with format *method_signature@bytecode_offset@n_th_string_parameter* to a set of strings. The key uniquely represents a target string variable, which is passed to line *bytecode_offset* of the method *method_signature* as the *n_th_string_parameter*. The value represents the possible values of the string.
   
 # Build
-We prefer to use eclipse to build the project (import an existing Maven project).
+We prefer to use eclipse or intelliJ to build the project (import an existing Maven project).
 
-The current supported Java version is 1.8. If encounters problems, please try to downgrade to Java 1.7 (soot-trunk.jar needs to be updated accordingly).
-
-Add graphs.jar and soot-trunk.jar to build path.
-
-# Generate the classlist.txt
-Step1: java -jar soot-trunk.jar -android-jars path-to-parentFolderOfandroid--1 -src-prec apk -f J -process-dir path-to-XXX.apk -allow-phantom-refs
-
-Step2: read the names of all the generated files in sootOutput and write them to classlist.txt
+Add graphs.jar to build path.
 
 # Configuration
 Main method arguments: path-to-config.txt
