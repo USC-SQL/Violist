@@ -281,7 +281,7 @@ public class JavaAndroid {
     				}
     				//System.out.println();
     				//Method Signature@Bytecode Offset@Parameter Index
-	    			analysisResult.put(hotspot[0]+"@"+hotspot[2]+"@"+hotspot[3],possibleValues);
+	    			analysisResult.put(hotspot[0]+"@"+hotspot[1]+"@"+hotspot[2]+"@"+hotspot[3],possibleValues);
 	    			
 		    		try
 		    		{
