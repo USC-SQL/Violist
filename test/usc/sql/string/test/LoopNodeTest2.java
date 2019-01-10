@@ -42,7 +42,19 @@ public class LoopNodeTest2 {
 		Node R = new Node("R");
 		Node Entry = new Node("entry");
 		Node Exit = new Node("exit");
-		
+
+		int offset = 0;
+		Entry.setOffset(-1);
+		A.setOffset(offset++);
+		B.setOffset(offset++);
+		C.setOffset(offset++);
+		D.setOffset(offset++);
+		E.setOffset(offset++);
+		F.setOffset(offset++);
+		G.setOffset(offset++);
+		R.setOffset(offset++);
+		Exit.setOffset(offset++);
+
 		entry = Entry;
 
 		Edge E1 = new Edge(Entry,A);
@@ -136,7 +148,6 @@ public class LoopNodeTest2 {
 		
 		for(EdgeInterface bg: backedgeOracle)
 		{
-			System.out.println(loopSetResult.get(bg).size());
 			assertTrue(compare(loopSetResult.get(bg),loopSetOracle.get(bg)));
 		}
 		
