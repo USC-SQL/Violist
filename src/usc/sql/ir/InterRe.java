@@ -150,9 +150,9 @@ public class InterRe {
 						
 						for(ValueBox vb:actualNode.getUseBoxes())
 						{
-							if(vb.getValue().getType().toString().equals("java.lang.String")&&!vb.getValue().toString().contains("<"))
+							
+							if(vb instanceof ImmediateBox && vb.getValue().getType().toString().equals("java.lang.String"))
 							{
-								
 								paraNum++;
 								if(targetSignature.get(signature).contains(paraNum))
 								{
