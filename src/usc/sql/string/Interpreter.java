@@ -8,6 +8,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.PatternSyntaxException;
 
+import soot.Unit;
+import soot.tagkit.BytecodeOffsetTag;
+import soot.tagkit.Tag;
 import usc.sql.ir.*;
 
 public class Interpreter {
@@ -76,7 +79,7 @@ public class Interpreter {
 	{
 		Set<String> s = new HashSet<>();
 		if(fieldMap==null)
-			s.add("Unknown@FIELD");
+			s.add("Unknown@FIELD@"+fieldName + "!!!");
 		else
 		{
 			if(fieldMap.get(fieldName)!=null)
@@ -84,14 +87,14 @@ public class Interpreter {
 				for(String temp:fieldMap.get(fieldName))
 				{
 					if(temp.matches("<.*>"))
-						s.add("Unknown@FIELD");
+						s.add("Unknown@FIELD@"+fieldName + "!!!");
 					else
 						s.add(temp);
 				}
 				//s.addAll(fieldMap.get(((ExternalPara) ir).getName()));
 			}
 			else 
-				s.add("Unknown@FIELD");
+				s.add("Unknown@FIELD@"+fieldName + "!!!");
 				//s.add(fieldName);
 		}
 		return s;
@@ -172,22 +175,38 @@ public class Interpreter {
 		else if(ir instanceof ExternalPara)
 		{
 			Set<String> s = new HashSet<>();
-			String externalName = ((ExternalPara) ir).getName();
+			ExternalPara ep = ((ExternalPara) ir);
+			String externalName = ep.getName();
+			
+			int sourceLineNum = ep.getSourceLineNum();
+			int bytecodeOffset = ep.getBytecodeOffSet();
+		
 			//field
+			//FORMAT:Unknown@FIELD@<field_signature>!!!
 			if(externalName.matches("<.*>"))
 			{
 				s.addAll(interpretField(externalName));
 			}
 			//para
+			//FORMAT:!Unknown@PARA@<method_signature>@parameter_index!!!
 			else if(externalName.contains("@parameter"))
-				s.add("Unknown@PARA@"+externalName.substring(externalName.indexOf("<"),externalName.lastIndexOf(">")+1));
+			{
+				s.add("Unknown@PARA" + externalName  + "!!!");
+			}
 			//method
+			//FORMAT:Unknown@METHOD@<invoking_method_signature>@<containing_method_signature>@source_line_number@bytecode_offset!!!
 			else if(externalName.contains("<"))
-				s.add("Unknown@METHOD@"+externalName.substring(externalName.indexOf("<"),externalName.indexOf(">")+1));
+			{
+				s.add("Unknown@METHOD@"+externalName.substring(externalName.indexOf("<")) +"@"+ ep.getContainingMethod() + 
+						"@" + sourceLineNum + "@" + bytecodeOffset  + "!!!" );
+			}
+			//FORMAT:Unknown@XX@<unit_toString>@<containing_method_signature@source_line_number@bytecode_offset!!!
 			else
-				s.add(externalName);
+				s.add(externalName + "@" + "DYNAMIC_VAR" +"@" + ep.getContainingMethod() + 
+						"@" + sourceLineNum + "@" + bytecodeOffset + "!!!");
 			return s;
 		}
+		
 		else if(ir instanceof Init)
 		{			
 			Set<String> s = new HashSet<>();

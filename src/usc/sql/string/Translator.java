@@ -17,9 +17,13 @@ import java.util.Queue;
 import java.util.Set;
 
 import SootEvironment.JavaApp;
+import soot.Unit;
 import soot.ValueBox;
+import soot.tagkit.BytecodeOffsetTag;
+import soot.tagkit.Tag;
 import usc.sql.ir.*;
 import edu.usc.sql.graphs.EdgeInterface;
+import edu.usc.sql.graphs.Node;
 import edu.usc.sql.graphs.NodeInterface;
 
 public class Translator {
@@ -435,7 +439,17 @@ public class Translator {
 						for(String line:rd.getLineNumForUse(returnNodeAndName.getKey(), ((InternalVar)returnNodeAndName.getValue()).getName()))
 						{
 							if(newUseMapLoop.get(line)==null)
-								returnVar.add(new ExternalPara("Unknown@USENULL"));
+							{
+								Unit actualNode = (Unit) ((Node)returnNodeAndName.getKey()).getActualNode();
+								int sourceLineNumber = actualNode.getJavaSourceStartLineNumber();
+								int bytecodeOffset = -1;
+								for (Tag t : actualNode.getTags()) {
+									if (t instanceof BytecodeOffsetTag)
+										bytecodeOffset = ((BytecodeOffsetTag) t).getBytecodeOffset();
+								}
+								
+								returnVar.add(new ExternalPara("Unknown@USENULL", methodName, sourceLineNumber, bytecodeOffset));
+							}
 							else
 								returnVar.addAll(newUseMapLoop.get(line));
 						}
@@ -680,7 +694,16 @@ public class Translator {
 								}
 							}
 							else
-								varList.add(new ExternalPara("Unknown@USENULL"));
+							{
+								Unit actualNode = (Unit) ((Node)n).getActualNode();
+								int sourceLineNumber = actualNode.getJavaSourceStartLineNumber();
+								int bytecodeOffset = -1;
+								for (Tag t : actualNode.getTags()) {
+									if (t instanceof BytecodeOffsetTag)
+										bytecodeOffset = ((BytecodeOffsetTag) t).getBytecodeOffset();
+								}
+								varList.add(new ExternalPara("Unknown@USENULL", methodName, sourceLineNumber, bytecodeOffset));
+							}
 							
 							newlyDefine = true;
 						}
@@ -1142,7 +1165,7 @@ public class Translator {
 				if(v.getSize()<2000)
 					vl.add(copyVar(v));
 				else
-					vl.add(new ExternalPara("Unknown@IRSIZE"));
+					vl.add(new ExternalPara("Unknown@IRSIZE", methodName, -1, -1));
 					
 			}
 		return vl;
