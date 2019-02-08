@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 import CallGraph.NewNode;
 import CallGraph.StringCallGraph;
@@ -19,6 +20,8 @@ import soot.jimple.Stmt;
 import soot.jimple.internal.ImmediateBox;
 import soot.jimple.toolkits.callgraph.CHATransformer;
 import soot.jimple.toolkits.callgraph.CallGraph;
+import soot.tagkit.BytecodeOffsetTag;
+import soot.tagkit.Tag;
 import soot.util.Chain;
 import usc.sql.ir.ConstantInt;
 import usc.sql.ir.ConstantString;
@@ -106,45 +109,227 @@ public class JavaAndroid {
     	Map<String,Set<NodeInterface>> paraMap = new HashMap<>();
     	Map<String,Set<String>> fieldMap = new HashMap<>();
 		Map<String,Translator> tMap = new HashMap<>();
-		long totalTranslate = 0,totalInterpret = 0;
+
 
 		String summaryFolder = "MethodSummary/";
-		File sFolder = new File(summaryFolder);
-		 // if the directory does not exist, create it
-		 if (!sFolder.exists()) {
-		     try{
-		    	 sFolder.mkdir();
-		     } 
-		     catch(SecurityException se){
-		    	 System.out.println("Create a folder named : \"MethodSummary\" under the app folder");
-		     }
-		 }
-		 else
-		 {
-			 final File[] files = sFolder.listFiles();
-			 if(files!=null) { //some JVMs return null for empty dirs
-			        for(File f: files) {
-			                f.delete();
-			        }
-			    }
-		 }
+		File sFolder = createSummaryFolder(summaryFolder);
 
 		//System.out.println("Target Signatures and parameters: "+targetSignature);
 		
-		long t1,t2;
+
 		//prune the call graph and only include callers and callees of target APIs
-		callGraph.setPotentialAPI(identifyRelevant(targetSignature.keySet()));
-    	for(CFGInterface cfg:callGraph.getRTOInterface())
+		Set<String> relevantMethods = identifyRelevant(targetSignature.keySet());
+		callGraph.setPotentialAPI(relevantMethods);
+		
+
+		//visit the methods in reverser topological order, get the IRs for each target string variable,
+		//store in targetMap, which maps the method signature to the IRs it contains
+		List<CFGInterface> rtoList = callGraph.getRTOInterface();
+		Map<String, CFGInterface> sigToCFG = new HashMap<>();
+    	getIRsInReverseTopoOrder(targetMap, paraMap, fieldMap, tMap,
+				summaryFolder, rtoList, sigToCFG);
+
+    	
+    	Map<String, Set<Variable>> callPathIdToIR = new HashMap<>();
+    	Map<String, Map<NodeInterface, String>> callPathIdToCallPath = new HashMap<>();
+    	//visit the method in topological order, duplicate the IRs in different call chains
+    	for(NewNode cgEntry : callGraph.getHeads())
     	{
+    		if(cgEntry.getMethod() == null)
+    			continue;
+    		String sig = cgEntry.getMethod().getSignature();
+    		if(!relevantMethods.contains(sig))
+    			continue;
     		
+
+    		CFGInterface cfg = sigToCFG.get(sig);
+
+			Map<NodeInterface, String> callChain = new LinkedHashMap<>();
+			addToTargetIRs(cfg, sigToCFG, callChain, targetMap, callPathIdToIR, callPathIdToCallPath);
+    	}
+    	
+    	
+    	
+    	for(Entry<String, Set<Variable>> callPathIdToIREntry : callPathIdToIR.entrySet())
+    	{
+    		String callPathId = callPathIdToIREntry.getKey();
+    		
+    		Set<Variable> IRs = replaceExternalInCallChain(callPathIdToIREntry.getValue(),
+    				callPathIdToCallPath.get(callPathId), tMap);
+    		
+    		Interpreter intp = new Interpreter(IRs,fieldMap,maxloop);
+			//InterpreterPath intp = new InterpreterPath(newIR,fieldMap,maxloop);
+
+			Set<String> possibleValues = new HashSet<>();
+			for(Variable targetIR : IRs)
+			{
+				//System.out.println("IR:"+targetIR);
+				for(String intpValue: targetIR.getInterpretedValue())
+				{
+					String formatAdjustment = intpValue.trim().replaceAll("\\\\'","'");
+					possibleValues.add(formatAdjustment);
+				}
+			}
+			analysisResult.put(callPathId, possibleValues);
+    	}
+    	
+    	/*
+    	for(Entry<String,Map<String,Set<Variable>>> enout: targetMap.entrySet())
+    	{
+    		String signature = enout.getKey();
+    		int i1 = signature.indexOf("<"),i2 = signature.indexOf(":");
+    		for(Entry<String,Set<Variable>> irSignature:enout.getValue().entrySet())
+    		{
+
+	    		Set<Variable> newIR = replaceExternal(irSignature.getValue(),signature,paraMap,tMap);
+	    		
+	    		//statistic.add(en.getKey()+":"+getWidth(newIR)+" "+getHeight(newIR)+" "+getLoopDepth(newIR)+" "+getLoopCount(newIR)+" "+getExternalCount(newIR));
+
+
+	    		Interpreter intp = new Interpreter(newIR,fieldMap,maxloop);
+				//InterpreterPath intp = new InterpreterPath(newIR,fieldMap,maxloop);
+				Set<String> value = new HashSet<>();
+				value.addAll(intp.getValueForIR());
+	    		
+				if(value.isEmpty())
+					value.add("Unknown@INTERPRET");
+
+
+    			//if(!value.isEmpty())
+	    		//if(!emptyOrContainUnknown(value))  			
+	    		{
+        			output.put(irSignature.getKey(), newIR);
+	    			String[] hotspot = irSignature.getKey().split("@");
+	    			
+	    			StringBuilder result = new StringBuilder();
+
+    				//System.out.println("Method Name: "+ hotspot[0]);
+    				result.append("Method Name: "+ hotspot[0]+"\n");
+    				//System.out.println("Source Line Number: "+ hotspot[1]);
+    				result.append("Source Line Number: "+ hotspot[1]+"\n");
+    				//System.out.println("Bytecode Offset: "+hotspot[2]);
+    				result.append("Bytecode Offset: "+hotspot[2]+"\n");
+    				//System.out.println("Nth String Parameter: " + hotspot[3]);
+    				result.append("Nth String Parameter: " + hotspot[3]+"\n");
+    				//System.out.println("Jimple: "+ hotspot[4]);
+    				//result.append("Jimple: "+ hotspot[4]+"\n");
+
+    				Set<String> possibleValues = new HashSet<>();
+    				for(Variable targetIR : newIR)
+    				{
+    					//System.out.println("IR:"+targetIR);
+    					result.append("IR:"+targetIR+"\n");
+    					for(String intpValue: targetIR.getInterpretedValue())
+    					{
+    						String replace = intpValue.trim().replaceAll("\\\\'","'");
+    						//System.out.println("Value:"+replace);
+    						result.append("Value:"+replace+"\n");
+    						possibleValues.add(replace);
+    					}
+    				}
+    				//System.out.println();
+    				//Method Signature@Bytecode Offset@Parameter Index
+	    			analysisResult.put(hotspot[0]+"@"+hotspot[1]+"@"+hotspot[2]+"@"+hotspot[3],possibleValues);
+	    			
+		    		try
+		    		{
+		    			if(outputPath != null) {
+                            PrintWriter bw = new PrintWriter(new FileWriter(outputPath + "result.txt", true));
+                            //PrintWriter bw = new PrintWriter(new FileWriter(wfolder+en.getKey().replaceAll("\"", "")+".txt",true));
+                            bw.println(result);
+
+                            bw.flush();
+                            bw.close();
+                        }
+		    		}
+		    		catch(IOException e)
+		    		{
+		    			e.printStackTrace();
+		    		}
+	    		}
+
+	    	}
+    	}
+    	*/
+    	
+    	//System.out.println("Total Trans: "+ totalTranslate);
+    	//System.out.println("Total Interp: "+ totalInterpret);
+		removeSummaryFolder(sFolder);
+	}
+
+	
+	private void addToTargetIRs(CFGInterface cfg,
+			Map<String, CFGInterface> sigToCFG,
+			Map<NodeInterface, String> callChain,
+			Map<String, Map<String, Set<Variable>>> methodToIR,
+			Map<String, Set<Variable>> callPathIdToIR,
+			Map<String, Map<NodeInterface, String>> callPathIdToCallPath) {
+		
+		String currentMethodSig = cfg.getSignature();
+		if(methodToIR.containsKey(cfg.getSignature()))
+		{
+			Map<String, Set<Variable>> lineIdToIR = methodToIR.get(currentMethodSig);
+			
+			for(Entry<String, Set<Variable>> lineIdToIREntry : lineIdToIR.entrySet())
+			{
+				String[] hotspot = lineIdToIREntry.getKey().split("@");
+				String sourceLineNum = hotspot[1];
+				String bytecodeOffset = hotspot[2];
+				String paraIndex = hotspot[3];
+				
+				
+				String pathId = printCallChain(callChain) 
+				+ currentMethodSig + "@" + sourceLineNum + "@" + bytecodeOffset +"@"+ paraIndex;
+				if(callPathIdToIR.containsKey(pathId))
+					System.err.println("Depulicate string analysis result:" + pathId);
+				callPathIdToIR.put(pathId, copyVarSet(lineIdToIREntry.getValue()));
+				callPathIdToCallPath.put(pathId, callChain);
+			}
+			
+		}
+		
+		for(NodeInterface n: cfg.getAllNodes())
+		{
+			Unit actualNode = (Unit) ((Node)n).getActualNode();
+			if(actualNode!=null)
+			{
+				if(((Stmt)actualNode).containsInvokeExpr())
+				{
+					SootMethod sm = ((Stmt)actualNode).getInvokeExpr().getMethod();
+					String sig= sm.getSignature();
+					if(sigToCFG.containsKey(sig))
+					{
+						CFGInterface newCfg = sigToCFG.get(sig);
+						
+						Map<NodeInterface, String> copyCallChain = new LinkedHashMap<>();
+						for(Entry<NodeInterface, String> entry : callChain.entrySet())
+							copyCallChain.put(entry.getKey(), entry.getValue());
+						copyCallChain.put(n, currentMethodSig);
+						addToTargetIRs(newCfg, sigToCFG, copyCallChain, methodToIR, callPathIdToIR, callPathIdToCallPath);
+					}
+				}
+			}
+		}
+	}
+
+	
+	private void getIRsInReverseTopoOrder(
+			Map<String, Map<String, Set<Variable>>> targetMap,
+			Map<String, Set<NodeInterface>> paraMap,
+			Map<String, Set<String>> fieldMap, Map<String, Translator> tMap,
+			String summaryFolder, List<CFGInterface> rtoList,
+			Map<String, CFGInterface> sigToCFG) {
+		for(CFGInterface cfg : rtoList)
+    	{
     		String signature=cfg.getSignature();
+    		sigToCFG.put(signature, cfg);
     		//field																	def missing
     		//if(cfg.getAllNodes().size()>3000)
     			//continue;
 
     		//for(int i=1;i<=loopCount;i++)
     		//{
-    		t1 = System.currentTimeMillis();
+
     		
     		LayerRegion lll = new LayerRegion(null);
     		ReachingDefinition rd = new ReachingDefinition(cfg.getAllNodes(), cfg.getAllEdges(),lll.identifyBackEdges(cfg.getAllNodes(),cfg.getAllEdges(), cfg.getEntryNode()));	   		
@@ -212,106 +397,7 @@ public class JavaAndroid {
     			targetMap.put(signature, labelIR);
     	 		
 
-    		t2 = System.currentTimeMillis();
-    		totalTranslate += t2-t1;
     	}
-    	int count = 0;
-    	
-    	List<String> statistic = new ArrayList<>();
-    	for(Entry<String,Map<String,Set<Variable>>> enout: targetMap.entrySet())
-    	{
-    		String signature = enout.getKey();
-    		int i1 = signature.indexOf("<"),i2 = signature.indexOf(":");
-    		for(Entry<String,Set<Variable>> irSignature:enout.getValue().entrySet())
-    		{
-	    		t1 = System.currentTimeMillis();
-	    		Set<Variable> newIR = replaceExternal(irSignature.getValue(),signature,paraMap,tMap);
-	    		
-	    		//statistic.add(en.getKey()+":"+getWidth(newIR)+" "+getHeight(newIR)+" "+getLoopDepth(newIR)+" "+getLoopCount(newIR)+" "+getExternalCount(newIR));
-	    		
-	    		t2 = System.currentTimeMillis();
-	    		totalTranslate += t2-t1;
-	    
-	    		
-	    		t1 = System.currentTimeMillis();
-
-	    		Interpreter intp = new Interpreter(newIR,fieldMap,maxloop);
-				//InterpreterPath intp = new InterpreterPath(newIR,fieldMap,maxloop);
-				Set<String> value = new HashSet<>();
-				value.addAll(intp.getValueForIR());
-	    		
-				if(value.isEmpty())
-					value.add("Unknown@INTERPRET");
-	    		
-    			t2 = System.currentTimeMillis();
-    			
-    			totalInterpret += t2-t1;
-
-    			//if(!value.isEmpty())
-	    		//if(!emptyOrContainUnknown(value))  			
-	    		{
-        			output.put(irSignature.getKey(), newIR);
-	    			String[] hotspot = irSignature.getKey().split("@");
-	    			
-	    			StringBuilder result = new StringBuilder();
-
-    				//System.out.println("Method Name: "+ hotspot[0]);
-    				result.append("Method Name: "+ hotspot[0]+"\n");
-    				//System.out.println("Source Line Number: "+ hotspot[1]);
-    				result.append("Source Line Number: "+ hotspot[1]+"\n");
-    				//System.out.println("Bytecode Offset: "+hotspot[2]);
-    				result.append("Bytecode Offset: "+hotspot[2]+"\n");
-    				//System.out.println("Nth String Parameter: " + hotspot[3]);
-    				result.append("Nth String Parameter: " + hotspot[3]+"\n");
-    				//System.out.println("Jimple: "+ hotspot[4]);
-    				result.append("Jimple: "+ hotspot[4]+"\n");
-
-    				Set<String> possibleValues = new HashSet<>();
-    				for(Variable targetIR : newIR)
-    				{
-    					//System.out.println("IR:"+targetIR);
-    					result.append("IR:"+targetIR+"\n");
-    					for(String intpValue: targetIR.getInterpretedValue())
-    					{
-    						String replace = intpValue.trim().replaceAll("\\\\'","'");
-    						//System.out.println("Value:"+replace);
-    						result.append("Value:"+replace+"\n");
-    						possibleValues.add(replace);
-    					}
-    				}
-    				//System.out.println();
-    				//Method Signature@Bytecode Offset@Parameter Index
-	    			analysisResult.put(hotspot[0]+"@"+hotspot[1]+"@"+hotspot[2]+"@"+hotspot[3],possibleValues);
-	    			
-		    		try
-		    		{
-		    			if(outputPath != null) {
-                            PrintWriter bw = new PrintWriter(new FileWriter(outputPath + "result.txt", true));
-                            //PrintWriter bw = new PrintWriter(new FileWriter(wfolder+en.getKey().replaceAll("\"", "")+".txt",true));
-                            bw.println(result);
-
-                            bw.flush();
-                            bw.close();
-                        }
-		    		}
-		    		catch(IOException e)
-		    		{
-		    			e.printStackTrace();
-		    		}
-	    		}
-
-	    	}
-    	}
-    	
-    	//System.out.println("Total Trans: "+ totalTranslate);
-    	//System.out.println("Total Interp: "+ totalInterpret);
-		final File[] files = sFolder.listFiles();
-		if(files!=null) { //some JVMs return null for empty dirs
-			for(File f: files) {
-				f.delete();
-			}
-		}
-		sFolder.delete();
 	}
 	
 	
@@ -450,6 +536,8 @@ public class JavaAndroid {
     	
     	}
 		
+    	//Key : signature of method that contains the targets
+    	//Value: a map mapping the line id of the target string to its IR
     	for(Entry<String,Map<String,Set<Variable>>> enout: targetMap.entrySet())
     	{
     		String signature = enout.getKey();
@@ -464,6 +552,8 @@ public class JavaAndroid {
     			
     				
 	    		t1 = System.currentTimeMillis();
+	    		
+	    		
 	    		Set<Variable> newIR = replaceExternal(en.getValue(),signature,paraMap,tMap);
 	    		t2 = System.currentTimeMillis();
 	    		totalTranslate += t2-t1;
@@ -536,13 +626,7 @@ public class JavaAndroid {
     	
     	System.out.println("Total Trans: "+ totalTranslate);
     	System.out.println("Total Interp: "+ totalInterpret);
-        final File[] files = sFolder.listFiles();
-		if(files!=null) { //some JVMs return null for empty dirs
-            for(File f: files) {
-				f.delete();
-            }
-        }
-        sFolder.delete();
+        removeSummaryFolder(sFolder);
 	}
 	public Map<String, Set<Variable>> getIRs()
 	{
@@ -586,6 +670,13 @@ public class JavaAndroid {
 			return false;
 		}
 	}
+	private Set<Variable> copyVarSet(Set<Variable> vSet)
+	{
+		Set<Variable> copyVSet = new HashSet<>();
+		for(Variable v : vSet)
+			copyVSet.add(copyVar(v));
+		return copyVSet;
+	}
 	private Variable copyVar(Variable v)
 	{
 		
@@ -628,6 +719,49 @@ public class JavaAndroid {
 			return v;
 	}
 
+	private Set<Variable> replaceExternalInCallChain(Set<Variable> IRs, 
+			Map<NodeInterface, String> callChainNodeToContainingMethod, 
+			Map<String,Translator> tMap)
+	{
+		boolean existPara = false;
+		for(Variable v:IRs)
+		{
+			if(containPara(v))
+				existPara = true;
+		}
+		if(!existPara || callChainNodeToContainingMethod.isEmpty())
+		{	
+			return IRs;
+		}
+		else
+		{
+			//reverse the order so that it is from callee to caller
+			List<NodeInterface> reverseOrderedKeys = new ArrayList<>(callChainNodeToContainingMethod.keySet());
+			Collections.reverse(reverseOrderedKeys);
+
+			Set<Variable> newIRs = new HashSet<>();
+			newIRs.addAll(IRs);
+			for (NodeInterface n : reverseOrderedKeys) {
+				
+				Stmt actualNode = ((Node<Stmt>) n).getActualNode();
+				
+				
+				if(actualNode.getInvokeExpr().getArgCount() == 0)
+					break;
+				
+			    String parentSig = callChainNodeToContainingMethod.get(n);
+			    Set<Variable> externalReplacedIRs = new HashSet<>();
+			    for(Variable v : newIRs)
+			    {
+			    	Set<Variable> newV = replaceExternal(v, n, tMap.get(parentSig));
+			    	externalReplacedIRs.addAll(copyVarSet(newV));
+			    	newIRs = externalReplacedIRs;
+			    }
+			}
+			return newIRs;
+		}
+
+	}
 	private Set<Variable> replaceExternal(Set<Variable> IRs,String signature,Map<String,Set<NodeInterface>> paraMap,Map<String,Translator> tMap)
 	{
 
@@ -951,6 +1085,40 @@ public class JavaAndroid {
 		return targetMethod;
 	}
 	
+	
+	private File createSummaryFolder(String summaryFolder) {
+		File sFolder = new File(summaryFolder);
+		 // if the directory does not exist, create it
+		 if (!sFolder.exists()) {
+		     try{
+		    	 sFolder.mkdir();
+		     } 
+		     catch(SecurityException se){
+		    	 System.out.println("Create a folder named : \"MethodSummary\" under the app folder");
+		     }
+		 }
+		 else
+		 {
+			 final File[] files = sFolder.listFiles();
+			 if(files!=null) { //some JVMs return null for empty dirs
+			        for(File f: files) {
+			                f.delete();
+			        }
+			    }
+		 }
+		return sFolder;
+	}
+	
+	private void removeSummaryFolder(File sFolder) {
+		final File[] files = sFolder.listFiles();
+		if(files!=null) { //some JVMs return null for empty dirs
+			for(File f: files) {
+				f.delete();
+			}
+		}
+		sFolder.delete();
+	}
+	
 	public Map<String,Integer> getOperations(Set<Variable> vars)
 	{		
 
@@ -959,6 +1127,25 @@ public class JavaAndroid {
 			getOperations(v,opFreq);
 		return opFreq;
 	
+	}
+	
+	private String printCallChain(Map<NodeInterface, String> callChain)
+	{
+		StringBuilder output = new StringBuilder("");
+		//int length = silica.getCallChain().size();
+		//int count = 0;
+		for(Entry<NodeInterface, String> nodeToCallerSig : callChain.entrySet())
+		{
+			Unit actualNode = ((Node<Unit>)nodeToCallerSig.getKey()).getActualNode();
+			String sig = nodeToCallerSig.getValue();
+			output.append(sig);
+			output.append("@");
+			output.append(actualNode.getJavaSourceStartLineNumber());
+			output.append("@");
+			output.append(InterRe.getBytecodeOffset(actualNode));
+			output.append("->\n");
+		}
+		return output.toString();
 	}
 	public void getOperations(Variable v,Map<String,Integer> opFreq)
 	{		

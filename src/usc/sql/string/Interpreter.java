@@ -72,9 +72,12 @@ public class Interpreter {
 			//System.out.println(ir);
 			Set<String> s = new HashSet<>();
 			s.addAll(interpret(ir,maxLoop));
+			if(s.isEmpty())
+				s.add("Unknown@INTERPRET@!!!");
 			ir.setInterpretedValue(s);
 		}
 	}
+	
 	private Set<String> interpretField(String fieldName)
 	{
 		Set<String> s = new HashSet<>();
@@ -188,7 +191,7 @@ public class Interpreter {
 				s.addAll(interpretField(externalName));
 			}
 			//para
-			//FORMAT:!Unknown@PARA@<method_signature>@parameter_index!!!
+			//FORMAT:Unknown@PARA@<method_signature>@parameter_index!!!
 			else if(externalName.contains("@parameter"))
 			{
 				s.add("Unknown@PARA" + externalName  + "!!!");
@@ -202,7 +205,7 @@ public class Interpreter {
 			}
 			//FORMAT:Unknown@XX@<unit_toString>@<containing_method_signature@source_line_number@bytecode_offset!!!
 			else
-				s.add(externalName + "@" + "DYNAMIC_VAR" +"@" + ep.getContainingMethod() + 
+				s.add("Unknown@DYNAMIC_VAR@" + ep.getName() + "@"+ ep.getContainingMethod() + 
 						"@" + sourceLineNum + "@" + bytecodeOffset + "!!!");
 			return s;
 		}

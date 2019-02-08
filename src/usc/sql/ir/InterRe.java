@@ -134,12 +134,7 @@ public class InterRe {
 		if(actualNode!=null)
 		{
 			sourceLineNumber = actualNode.getJavaSourceStartLineNumber();
-			for (Tag t : actualNode.getTags()) {
-				if (t instanceof BytecodeOffsetTag)
-					bytecodeOffset = ((BytecodeOffsetTag) t).getBytecodeOffset();
-			}
-			if(bytecodeOffset == -1)
-				bytecodeOffset = actualNode.hashCode();
+			bytecodeOffset = getBytecodeOffset(actualNode);
 			if(targetSignature!=null&&actualNode.containsInvokeExpr())
 			{
 				String signature = actualNode.getInvokeExpr().getMethod().getSignature();
@@ -164,7 +159,7 @@ public class InterRe {
 									
 									//label: the target signature is found in method name at line source line + bytecode offset
 									nameAndLabel.add(methodName + "@" + sourceLineNumber + "@"
-												+ bytecodeOffset + "@" + paraNum+"@"+actualNode.toString());
+												+ bytecodeOffset + "@" + paraNum);
 										// System.out.println(targetCount+":"+vb.getValue().toString());
 									targetVarNodeAndName.put(n, nameAndLabel);
 									
@@ -880,11 +875,7 @@ public class InterRe {
 	private Variable replaceExternal(Variable v,List<ValueBox> valueBox, Unit actualNode)
 	{
 		int sourceLineNumber = actualNode.getJavaSourceStartLineNumber();
-		int bytecodeOffset = -1;
-		for (Tag t : actualNode.getTags()) {
-			if (t instanceof BytecodeOffsetTag)
-				bytecodeOffset = ((BytecodeOffsetTag) t).getBytecodeOffset();
-		}
+		int bytecodeOffset = getBytecodeOffset(actualNode);
 		
 		if(v instanceof ExternalPara)
 		{
@@ -954,4 +945,15 @@ public class InterRe {
 		return false;
 	}
 	
+	public static int getBytecodeOffset(Unit unit)
+	{
+		int bytecodeOffset = -1;
+		for (Tag t : unit.getTags()) {
+			if (t instanceof BytecodeOffsetTag)
+				bytecodeOffset = ((BytecodeOffsetTag) t).getBytecodeOffset();
+		}
+		if(bytecodeOffset == -1)
+			bytecodeOffset = unit.hashCode();
+		return bytecodeOffset;
+	}
 }
