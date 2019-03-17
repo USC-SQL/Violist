@@ -34,11 +34,6 @@
   </dependencies>
      <repositories>
     <repository>
-      <id>usc.sql</id>
-      <name>USC Software Quality Lab</name>
-      <url>http://atlanta.usc.edu:8081/artifactory/repo</url>
-    </repository>
-    <repository>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>
