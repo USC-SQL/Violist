@@ -44,7 +44,7 @@ public class Translator {
 	private String folderName;
 	private Map<String,List<Integer>> targetSignature;
 	private int targetParaOffset;
-	private Map<NodeInterface,List<String>> targetVarNodeAndName = new HashMap<>();
+	private Map<NodeInterface,List<List<String>>> targetVarNodeAndName = new HashMap<>();
 	private Map<String,Set<NodeInterface>> paraMap = new HashMap<>();
 	private Map<String,Set<String>> fieldMap = new HashMap<>();
 	private Map<String,String> labelConst = new HashMap<>();
@@ -441,14 +441,10 @@ public class Translator {
 							if(newUseMapLoop.get(line)==null)
 							{
 								Unit actualNode = (Unit) ((Node)returnNodeAndName.getKey()).getActualNode();
-								int sourceLineNumber = actualNode.getJavaSourceStartLineNumber();
-								int bytecodeOffset = -1;
-								for (Tag t : actualNode.getTags()) {
-									if (t instanceof BytecodeOffsetTag)
-										bytecodeOffset = ((BytecodeOffsetTag) t).getBytecodeOffset();
-								}
 								
-								returnVar.add(new ExternalPara("Unknown@USENULL", methodName, sourceLineNumber, bytecodeOffset));
+								int sourceLineNumber = actualNode.getJavaSourceStartLineNumber();
+								int bytecodeOffset = InterRe.getBytecodeOffset(actualNode);
+								returnVar.add(new ExternalPara("Unknown@USENULL@"+((InternalVar)returnNodeAndName.getValue()).getName(), methodName, sourceLineNumber, bytecodeOffset));
 							}
 							else
 								returnVar.addAll(newUseMapLoop.get(line));
@@ -697,12 +693,8 @@ public class Translator {
 							{
 								Unit actualNode = (Unit) ((Node)n).getActualNode();
 								int sourceLineNumber = actualNode.getJavaSourceStartLineNumber();
-								int bytecodeOffset = -1;
-								for (Tag t : actualNode.getTags()) {
-									if (t instanceof BytecodeOffsetTag)
-										bytecodeOffset = ((BytecodeOffsetTag) t).getBytecodeOffset();
-								}
-								varList.add(new ExternalPara("Unknown@USENULL", methodName, sourceLineNumber, bytecodeOffset));
+								int bytecodeOffset = InterRe.getBytecodeOffset(actualNode);
+								varList.add(new ExternalPara("Unknown@USENULL@" + ((InternalVar)v).getName(), methodName, sourceLineNumber, bytecodeOffset));
 							}
 							
 							newlyDefine = true;
@@ -1342,28 +1334,33 @@ public class Translator {
 	public Map<String,List<String>> getTargetLines()
 	{	
 		Map<String,List<String>> labelLines = new HashMap<>();
-		for(Entry<NodeInterface,List<String>> en:targetVarNodeAndName.entrySet())
+		for(Entry<NodeInterface,List<List<String>>> en:targetVarNodeAndName.entrySet())
 		{		
-			
-			List<String> lines = new ArrayList<>();
 			NodeInterface n = en.getKey();
-			String varname = en.getValue().get(0); 
-			String label = en.getValue().get(1);
-			if(varname.contains("\""))
+			for(List<String> nameAndLabel : en.getValue())
 			{
-				labelConst.put(label, varname);
-				lines.add("-1");
-				labelLines.put(label, lines);
+				List<String> lines = new ArrayList<>();
 				
-			}
+				String varname = nameAndLabel.get(0); 
+				String label = nameAndLabel.get(1);
+				if(varname.contains("\""))
+				{
+					labelConst.put(label, varname);
+					lines.add("-1");
+					labelLines.put(label, lines);
+					
+				}
+				
+				else
+				{
+					for(String line: rd.getLineNumForUse(n, varname))
+					{
+						lines.add(line);
 			
-			else				
-			for(String line: rd.getLineNumForUse(n, varname))
-			{
-				lines.add(line);
-	
+					}
+				}
+				labelLines.put(label, lines);
 			}
-			labelLines.put(label, lines);
 		}
 		
 		return labelLines;

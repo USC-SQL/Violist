@@ -3,6 +3,7 @@ package usc.sql.string;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,7 +43,7 @@ public class Interpreter {
 	}
 	public Set<String> getValue(String line)
 	{
-		Set<String> s = new HashSet<>();
+		Set<String> s = new LinkedHashSet<>();
 		
 		if(t.getTranslatedIR(line)!=null)
 		for(Variable ir: t.getTranslatedIR(line))
@@ -55,7 +56,7 @@ public class Interpreter {
 
 	public Set<String> getValueForIR()
 	{
-		Set<String> s = new HashSet<>();
+		Set<String> s = new LinkedHashSet<>();
 		for(Variable ir: target)
 		{
 			//System.out.println(ir);
@@ -70,17 +71,19 @@ public class Interpreter {
 		for(Variable ir: target)
 		{
 			//System.out.println(ir);
-			Set<String> s = new HashSet<>();
+			Set<String> s = new LinkedHashSet<>();
 			s.addAll(interpret(ir,maxLoop));
 			if(s.isEmpty())
 				s.add("Unknown@INTERPRET@!!!");
+			s.remove(InterRe.ARRAY_MARKER);
+			s.remove(InterRe.CONTENT_VALUE_MARKER);
 			ir.setInterpretedValue(s);
 		}
 	}
 	
 	private Set<String> interpretField(String fieldName)
 	{
-		Set<String> s = new HashSet<>();
+		Set<String> s = new LinkedHashSet<>();
 		if(fieldMap==null)
 			s.add("Unknown@FIELD@"+fieldName + "!!!");
 		else
@@ -153,7 +156,7 @@ public class Interpreter {
 		{
 			
 
-			Set<String> s = new HashSet<>();
+			Set<String> s = new LinkedHashSet<>();
 			//s.add(ir.getValue());
 			
 			try
@@ -170,14 +173,14 @@ public class Interpreter {
 		}
 		if(ir instanceof ConstantString)
 		{
-			Set<String> s = new HashSet<>();
+			Set<String> s = new LinkedHashSet<>();
 			s.add(ir.getValue());
 			return s;
 		}
 	
 		else if(ir instanceof ExternalPara)
 		{
-			Set<String> s = new HashSet<>();
+			Set<String> s = new LinkedHashSet<>();
 			ExternalPara ep = ((ExternalPara) ir);
 			String externalName = ep.getName();
 			
@@ -203,16 +206,29 @@ public class Interpreter {
 				s.add("Unknown@METHOD@"+externalName.substring(externalName.indexOf("<")) +"@"+ ep.getContainingMethod() + 
 						"@" + sourceLineNum + "@" + bytecodeOffset  + "!!!" );
 			}
-			//FORMAT:Unknown@XX@<unit_toString>@<containing_method_signature@source_line_number@bytecode_offset!!!
+			//FORMAT:Unknown@DYNAMIC_VAR@variable_name@<containing_method_signature@source_line_number@bytecode_offset!!!
 			else
-				s.add("Unknown@DYNAMIC_VAR@" + ep.getName() + "@"+ ep.getContainingMethod() + 
+			{
+				String var_name;
+				if(ep.getName().contains("@"))
+				{
+					String[] names = ep.getName().split("@");
+					if(names.length >= 3)
+						var_name = ep.getName().split("@")[2];
+					else
+						var_name = names[1];
+				}
+				else
+					var_name = ep.getName();
+				s.add("Unknown@DYNAMIC_VAR@" + var_name + "@"+ ep.getContainingMethod() + 
 						"@" + sourceLineNum + "@" + bytecodeOffset + "!!!");
+			}
 			return s;
 		}
 		
 		else if(ir instanceof Init)
 		{			
-			Set<String> s = new HashSet<>();
+			Set<String> s = new LinkedHashSet<>();
 			if(itr != 0)
 				return s;
 			else
@@ -260,8 +276,10 @@ public class Interpreter {
 					
 				case "encode":
 					return encodeInterpreter((Expression) ir,itr);
+				case "put":
+					return putInterpreter((Expression) ir,itr);
 				default:
-					return new HashSet<String>();
+					return new LinkedHashSet<String>();
 			}
 			
 		}
@@ -278,7 +296,7 @@ public class Interpreter {
 					parseTT((T) ir,i);
 				
 				
-				Set<String> s = new HashSet<>();
+				Set<String> s = new LinkedHashSet<>();
 				for(Set<String> tmp: tList.get(ir))
 				{
 					
@@ -307,9 +325,9 @@ public class Interpreter {
 				if(temp<0)
 				{
 					//System.out.println("oh no:"+ir);
-					return new HashSet<>();
+					return new LinkedHashSet<>();
 					/*
-					Set<String> value = new HashSet<>();
+					Set<String> value = new LinkedHashSet<>();
 					Variable e = ir.getParent();
 					if(e instanceof Expression)
 					{
@@ -359,7 +377,7 @@ public class Interpreter {
 
 
 	private Set<String> toCharArrayInterpreter(Expression ir, int itr) {
-		Set<String> s = new HashSet<>();
+		Set<String> s = new LinkedHashSet<>();
 		List<Variable> op1 =  ir.getOperands().get(0);
 		for(Variable v1: op1)
 		{
@@ -375,7 +393,7 @@ public class Interpreter {
 		return s;
 	}
 	private Set<String> charAtInterpreter(Expression ir, int itr) {
-		Set<String> s = new HashSet<>();
+		Set<String> s = new LinkedHashSet<>();
 		
 		List<Variable> op1 =  ir.getOperands().get(0);
 		List<Variable> op2 =  ir.getOperands().get(1);
@@ -420,7 +438,7 @@ public class Interpreter {
 		return s;
 	}
 	private Set<String> substringInterpreter(Expression ir, int itr) {
-		Set<String> s = new HashSet<>();
+		Set<String> s = new LinkedHashSet<>();
 		
 		List<Variable> op1 =  ir.getOperands().get(0);
 		List<Variable> op2 =  ir.getOperands().get(1);
@@ -452,12 +470,12 @@ public class Interpreter {
 		return s;
 	}
 	private Set<String> plusInterpreter(Expression ir,int itr) {
-		Set<String> s = new HashSet<>();
+		Set<String> s = new LinkedHashSet<>();
 		
 		List<Variable> op1 =  ir.getOperands().get(0);
 		List<Variable> op2 =  ir.getOperands().get(1);
-		Set<String> s1 = new HashSet<>();
-		Set<String> s2 = new HashSet<>();
+		Set<String> s1 = new LinkedHashSet<>();
+		Set<String> s2 = new LinkedHashSet<>();
 		for(Variable v1: op1)
 			s1.addAll(interpret(v1,itr));
 		for(Variable v2: op2)
@@ -529,8 +547,88 @@ public class Interpreter {
 		return s;
 		*/
 	}
+	
+	private Set<String> putInterpreter(Expression ir,int itr) {
+		Set<String> s = new LinkedHashSet<>();
+		
+		List<Variable> op1 =  ir.getOperands().get(0);
+		List<Variable> op2 =  ir.getOperands().get(1);
+		Set<String> s1 = new LinkedHashSet<>();
+		Set<String> s2 = new LinkedHashSet<>();
+		for(Variable v1: op1)
+			s1.addAll(interpret(v1,itr));
+		for(Variable v2: op2)
+			s2.addAll(interpret(v2,itr));
+		if(s1.isEmpty()||s2.isEmpty())
+			return s;
+		else
+		{
+			for(String value1:s1)
+			{	
+				for(String value2: s2)
+				{
+					s.add(value1+ InterRe.CONTENT_VALUE_OPERATOR +value2);
+				}
+			}
+			return s;
+				
+		}
+		/*
+		for(Variable v1: op1)
+		{
+			Set<String> s1 = interpret(v1,itr);
+			if(s1.isEmpty())
+				continue;
+			for(Variable v2: op2)
+			{
+				Set<String> s2 = interpret(v2,itr);
+				if(s2.isEmpty())
+					continue;
+				for(String value1:s1)
+					for(String value2: s2)
+					{
+						//System.out.println("PPP:"+value1+value2);
+						
+						//String temp1 = value1;
+						//String temp2 = value2;
+						try
+						{
+						//	temp1 = ""+(char)Integer.parseInt(temp1);
+					
+							
+						}
+						catch(NumberFormatException e) { 
+					    //   e.printStackTrace();
+					    }
+						try
+						{
+			
+						//	temp2 = ""+(char)Integer.parseInt(temp2);
+							
+						}
+						catch(NumberFormatException e) { 
+					     //  e.printStackTrace();
+					    }
+						//s.add(temp1+temp2);
+
+	
+							
+						s.add(value1+value2);
+						//value1 = null;
+						//value2 = null;
+					}
+						
+			}
+			
+			
+		}
+		
+		return s;
+		*/
+	}
+	
 	private Set<String> containsInterpreter(Expression ir, int itr) {
-		Set<String> s = new HashSet<>();
+		Set<String> s = new LinkedHashSet<>();
 		
 		List<Variable> op1 =  ir.getOperands().get(0);
 		List<Variable> op2 =  ir.getOperands().get(1);
@@ -562,7 +660,7 @@ public class Interpreter {
 		return s;
 	}
 	private Set<String> trimInterpreter(Expression ir,int itr) {
-		Set<String> s = new HashSet<>();
+		Set<String> s = new LinkedHashSet<>();
 		List<Variable> op1 =  ir.getOperands().get(0);
 		for(Variable v1: op1)
 		{
@@ -575,7 +673,7 @@ public class Interpreter {
 		return s;
 	}
 	private Set<String> encodeInterpreter(Expression ir,int itr) {
-		Set<String> s = new HashSet<>();
+		Set<String> s = new LinkedHashSet<>();
 		List<Variable> op1 =  ir.getOperands().get(0);
 		for(Variable v1: op1)
 		{
@@ -588,7 +686,7 @@ public class Interpreter {
 		return s;
 	}
 	private Set<String> castInterpreter(Expression ir,int itr) {
-		Set<String> s = new HashSet<>();
+		Set<String> s = new LinkedHashSet<>();
 		List<Variable> op1 =  ir.getOperands().get(0);
 		for(Variable v1: op1)
 		{
@@ -613,7 +711,7 @@ public class Interpreter {
 		return s;
 	}
 	private Set<String> toLowerInterpreter(Expression ir,int itr) {
-		Set<String> s = new HashSet<>();
+		Set<String> s = new LinkedHashSet<>();
 		List<Variable> op1 =  ir.getOperands().get(0);
 		for(Variable v1: op1)
 		{
@@ -627,7 +725,7 @@ public class Interpreter {
 	}
 
 	private Set<String> toUpperInterpreter(Expression ir,int itr) {
-		Set<String> s = new HashSet<>();
+		Set<String> s = new LinkedHashSet<>();
 		List<Variable> op1 =  ir.getOperands().get(0);
 		for(Variable v1: op1)
 		{
@@ -640,7 +738,7 @@ public class Interpreter {
 		return s;
 	}
 	private Set<String> replaceCharInterpreter(Expression ir, int itr) {
-		Set<String> s = new HashSet<>();
+		Set<String> s = new LinkedHashSet<>();
 		
 		List<Variable> op1 =  ir.getOperands().get(0);
 		List<Variable> op2 =  ir.getOperands().get(1);
@@ -693,7 +791,7 @@ public class Interpreter {
 		return s;
 	}
 	private Set<String> replaceCharSequenceInterpreter(Expression ir, int itr) {
-		Set<String> s = new HashSet<>();
+		Set<String> s = new LinkedHashSet<>();
 		
 		List<Variable> op1 =  ir.getOperands().get(0);
 		List<Variable> op2 =  ir.getOperands().get(1);
@@ -731,7 +829,7 @@ public class Interpreter {
 		return s;
 	}
 	private Set<String> replaceFirstInterpreter(Expression ir,int itr) {
-		Set<String> s = new HashSet<>();
+		Set<String> s = new LinkedHashSet<>();
 		
 		List<Variable> op1 =  ir.getOperands().get(0);
 		List<Variable> op2 =  ir.getOperands().get(1);
@@ -770,7 +868,7 @@ public class Interpreter {
 	}
 
 	private Set<String> replaceAllInterpreter(Expression ir,int itr) {
-		Set<String> s = new HashSet<>();
+		Set<String> s = new LinkedHashSet<>();
 		
 		List<Variable> op1 =  ir.getOperands().get(0);
 		List<Variable> op2 =  ir.getOperands().get(1);
@@ -863,7 +961,7 @@ public class Interpreter {
 								
 								target.addAll(opList);
 								target.remove(v);//System.out.println("got you"+target);
-								Set<String> value = new HashSet<>();
+								Set<String> value = new LinkedHashSet<>();
 								for(Variable init: target)
 								{
 									// !!!might be a trouble here, make extra interpret

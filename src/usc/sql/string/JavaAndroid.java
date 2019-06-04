@@ -121,7 +121,6 @@ public class JavaAndroid {
 		Set<String> relevantMethods = identifyRelevant(targetSignature.keySet());
 		callGraph.setPotentialAPI(relevantMethods);
 		
-
 		//visit the methods in reverser topological order, get the IRs for each target string variable,
 		//store in targetMap, which maps the method signature to the IRs it contains
 		List<CFGInterface> rtoList = callGraph.getRTOInterface();
@@ -153,14 +152,15 @@ public class JavaAndroid {
     	for(Entry<String, Set<Variable>> callPathIdToIREntry : callPathIdToIR.entrySet())
     	{
     		String callPathId = callPathIdToIREntry.getKey();
-    		
+    		//System.out.println("@@@" + callPathId);
+    		//System.out.println(callPathIdToCallPath);
     		Set<Variable> IRs = replaceExternalInCallChain(callPathIdToIREntry.getValue(),
-    				callPathIdToCallPath.get(callPathId), tMap);
+    				callPathIdToCallPath.get(callPathId), tMap, fieldMap);
     		
     		Interpreter intp = new Interpreter(IRs,fieldMap,maxloop);
 			//InterpreterPath intp = new InterpreterPath(newIR,fieldMap,maxloop);
 
-			Set<String> possibleValues = new HashSet<>();
+			Set<String> possibleValues = new LinkedHashSet<>();
 			for(Variable targetIR : IRs)
 			{
 				//System.out.println("IR:"+targetIR);
@@ -275,11 +275,11 @@ public class JavaAndroid {
 				String[] hotspot = lineIdToIREntry.getKey().split("@");
 				String sourceLineNum = hotspot[1];
 				String bytecodeOffset = hotspot[2];
-				String paraIndex = hotspot[3];
-				
+				String apiSig = hotspot[3];
+				String paraIndex = hotspot[4];
 				
 				String pathId = printCallChain(callChain) 
-				+ currentMethodSig + "@" + sourceLineNum + "@" + bytecodeOffset +"@"+ paraIndex;
+				+ currentMethodSig + "@" + sourceLineNum + "@" + bytecodeOffset +"@" + apiSig + "@"+ paraIndex;
 				if(callPathIdToIR.containsKey(pathId))
 					System.err.println("Depulicate string analysis result:" + pathId);
 				callPathIdToIR.put(pathId, copyVarSet(lineIdToIREntry.getValue()));
@@ -319,17 +319,11 @@ public class JavaAndroid {
 			Map<String, Set<String>> fieldMap, Map<String, Translator> tMap,
 			String summaryFolder, List<CFGInterface> rtoList,
 			Map<String, CFGInterface> sigToCFG) {
+
 		for(CFGInterface cfg : rtoList)
     	{
     		String signature=cfg.getSignature();
     		sigToCFG.put(signature, cfg);
-    		//field																	def missing
-    		//if(cfg.getAllNodes().size()>3000)
-    			//continue;
-
-    		//for(int i=1;i<=loopCount;i++)
-    		//{
-
     		
     		LayerRegion lll = new LayerRegion(null);
     		ReachingDefinition rd = new ReachingDefinition(cfg.getAllNodes(), cfg.getAllEdges(),lll.identifyBackEdges(cfg.getAllNodes(),cfg.getAllEdges(), cfg.getEntryNode()));	   		
@@ -351,7 +345,7 @@ public class JavaAndroid {
     				fieldMap.put(en.getKey(), en.getValue());
     		}
     		
-    		
+    	
     		 		
     		if(t.getTargetLines().isEmpty())
     			continue;
@@ -368,7 +362,7 @@ public class JavaAndroid {
     		for(String labelwithnum:t.getTargetLines().keySet())
     		{
     			
-    			Set<Variable> targetIR = new HashSet<>();
+    			Set<Variable> targetIR = new LinkedHashSet<>();
     			for(String line: t.getTargetLines().get(labelwithnum))
     			{
     				//if target IR is a constant string
@@ -514,7 +508,7 @@ public class JavaAndroid {
     		
     		for(String labelwithnum:t.getTargetLines().keySet())
     		{
-    			Set<Variable> targetIR = new HashSet<>();
+    			Set<Variable> targetIR = new LinkedHashSet<>();
     			for(String line: t.getTargetLines().get(labelwithnum))
     				if(t.getTranslatedIR(line)!=null)
     					targetIR.addAll(t.getTranslatedIR(line));
@@ -554,7 +548,7 @@ public class JavaAndroid {
 	    		t1 = System.currentTimeMillis();
 	    		
 	    		
-	    		Set<Variable> newIR = replaceExternal(en.getValue(),signature,paraMap,tMap);
+	    		Set<Variable> newIR = replaceExternal(en.getValue(),signature,paraMap,tMap,fieldMap);
 	    		t2 = System.currentTimeMillis();
 	    		totalTranslate += t2-t1;
 	    		
@@ -569,7 +563,7 @@ public class JavaAndroid {
 	    		else
 	    			loopCount = 3;
 	    		
-	    		Set<String> value = new HashSet<>();
+	    		Set<String> value = new LinkedHashSet<>();
 	    		
 	    		t1 = System.currentTimeMillis();
     			Interpreter intp = new Interpreter(newIR,fieldMap,loopCount);
@@ -672,7 +666,7 @@ public class JavaAndroid {
 	}
 	private Set<Variable> copyVarSet(Set<Variable> vSet)
 	{
-		Set<Variable> copyVSet = new HashSet<>();
+		Set<Variable> copyVSet = new LinkedHashSet<>();
 		for(Variable v : vSet)
 			copyVSet.add(copyVar(v));
 		return copyVSet;
@@ -721,54 +715,71 @@ public class JavaAndroid {
 
 	private Set<Variable> replaceExternalInCallChain(Set<Variable> IRs, 
 			Map<NodeInterface, String> callChainNodeToContainingMethod, 
-			Map<String,Translator> tMap)
+			Map<String,Translator> tMap, Map<String, Set<String>> fieldMap)
 	{
-		boolean existPara = false;
+		//System.out.println("!!!" + IRs + "\n"+callChainNodeToContainingMethod);
+		boolean existParaOrField = false;
 		for(Variable v:IRs)
 		{
-			if(containPara(v))
-				existPara = true;
+			if(containParaOrField(v))
+				existParaOrField = true;
 		}
-		if(!existPara || callChainNodeToContainingMethod.isEmpty())
+		if(!existParaOrField)
 		{	
 			return IRs;
 		}
 		else
 		{
-			//reverse the order so that it is from callee to caller
-			List<NodeInterface> reverseOrderedKeys = new ArrayList<>(callChainNodeToContainingMethod.keySet());
-			Collections.reverse(reverseOrderedKeys);
-
-			Set<Variable> newIRs = new HashSet<>();
-			newIRs.addAll(IRs);
-			for (NodeInterface n : reverseOrderedKeys) {
-				
-				Stmt actualNode = ((Node<Stmt>) n).getActualNode();
-				
-				
-				if(actualNode.getInvokeExpr().getArgCount() == 0)
-					break;
-				
-			    String parentSig = callChainNodeToContainingMethod.get(n);
-			    Set<Variable> externalReplacedIRs = new HashSet<>();
-			    for(Variable v : newIRs)
-			    {
-			    	Set<Variable> newV = replaceExternal(v, n, tMap.get(parentSig));
-			    	externalReplacedIRs.addAll(copyVarSet(newV));
-			    	newIRs = externalReplacedIRs;
-			    }
+			if(!callChainNodeToContainingMethod.isEmpty())
+			{
+				//reverse the order so that it is from callee to caller
+				List<NodeInterface> reverseOrderedKeys = new ArrayList<>(callChainNodeToContainingMethod.keySet());
+				Collections.reverse(reverseOrderedKeys);
+	
+				Set<Variable> newIRs = new LinkedHashSet<>();
+				newIRs.addAll(IRs);
+				for (NodeInterface n : reverseOrderedKeys) {
+					
+					Stmt actualNode = ((Node<Stmt>) n).getActualNode();
+					
+					
+					if(actualNode.getInvokeExpr().getArgCount() == 0)
+						break;
+					
+				    String parentSig = callChainNodeToContainingMethod.get(n);
+				    Set<Variable> externalReplacedIRs = new LinkedHashSet<>();
+				    for(Variable v : newIRs)
+				    {
+				    	Set<Variable> newV = replaceExternal(v, n, parentSig, tMap, fieldMap);
+				    	externalReplacedIRs.addAll(copyVarSet(newV));
+				    }
+				    newIRs = externalReplacedIRs;
+				}
+				return newIRs;
 			}
-			return newIRs;
+			else
+			{
+				Set<Variable> newIRs = new LinkedHashSet<>();
+				newIRs.addAll(IRs);
+				Set<Variable> externalReplacedIRs = new LinkedHashSet<>();
+				for(Variable v : newIRs)
+			    {
+			    	Set<Variable> newV = replaceExternal(v, null, null, tMap, fieldMap);
+			    	externalReplacedIRs.addAll(copyVarSet(newV));
+			    }
+				return externalReplacedIRs;
+			}
 		}
 
 	}
-	private Set<Variable> replaceExternal(Set<Variable> IRs,String signature,Map<String,Set<NodeInterface>> paraMap,Map<String,Translator> tMap)
+	private Set<Variable> replaceExternal(Set<Variable> IRs,String signature,
+			Map<String,Set<NodeInterface>> paraMap,Map<String,Translator> tMap, Map<String, Set<String>> fieldMap)
 	{
 
 		boolean existPara = false;
 		for(Variable v:IRs)
 		{
-			if(containPara(v))
+			if(containParaOrField(v))
 				existPara = true;
 		}
 		if(!existPara)
@@ -777,7 +788,7 @@ public class JavaAndroid {
 		}
 		else
 		{
-			Set<Variable> vSet = new HashSet<>();
+			Set<Variable> vSet = new LinkedHashSet<>();
 			for(Variable v: IRs)
 			{
 				if(paraMap.get(signature)==null)
@@ -791,20 +802,20 @@ public class JavaAndroid {
 					{
 						for(String parentSig:callGraph.getParents(signature))
 						{
-							Set<Variable> newIR = new HashSet<>();
+							Set<Variable> newIR = new LinkedHashSet<>();
 							
 							if(tMap.get(parentSig)!=null&&tMap.get(parentSig).getParaMap()!=null)
 								if(tMap.get(parentSig).getParaMap().get(signature)!=null)
 								{
 									for(NodeInterface n:tMap.get(parentSig).getParaMap().get(signature))
-										newIR.addAll(replaceExternal(copyVar(v),n,tMap.get(parentSig)));
+										newIR.addAll(replaceExternal(copyVar(v),n, parentSig, tMap, fieldMap));
 									
-									Set<Variable> copy = new HashSet<>();
+									Set<Variable> copy = new LinkedHashSet<>();
 									for(Variable vv:newIR)
 										copy.add(copyVar(vv));
 									
 								//	System.out.println(signature);
-									vSet.addAll(replaceExternal(copy,parentSig, paraMap, tMap));
+									vSet.addAll(replaceExternal(copy,parentSig, paraMap, tMap, fieldMap));
 									
 								}
 
@@ -818,12 +829,13 @@ public class JavaAndroid {
 
 	}
 	
-	boolean containPara(Variable v)
+	boolean containParaOrField(Variable v)
 	{
 
 			if(v instanceof ExternalPara)
 			{
-				if(((ExternalPara) v).getName().contains("@parameter"))
+				String name = ((ExternalPara) v).getName();
+				if(name.contains("@parameter") || name.matches("<.*>"))
 					return true;
 				else
 					return false;
@@ -833,7 +845,7 @@ public class JavaAndroid {
 				for(List<Variable> operandList:((Expression) v).getOperands())
 				{
 					for(Variable operand: operandList)
-					if(containPara(operand))
+					if(containParaOrField(operand))
 						return true;
 				}
 				return false;
@@ -841,19 +853,24 @@ public class JavaAndroid {
 			else if(v instanceof T)
 			{
 			
-				return containPara(((T) v).getVariable());
+				return containParaOrField(((T) v).getVariable());
 			}
 			else
 			return false;
 	}
 	
 	
-	private Set<Variable> replaceExternal(Variable v,NodeInterface n,Translator t)
+	private Set<Variable> replaceExternal(Variable v,NodeInterface n, String parentSig, 
+			Map<String,Translator> tMap,
+			Map<String,Set<String>> fieldMap)
 	{
-		Set<Variable> returnSet = new HashSet<>();
+
+		Set<Variable> returnSet = new LinkedHashSet<>();
 		if(v instanceof ExternalPara)
 		{
-			if(((ExternalPara) v).getName().contains("@parameter"))
+			Translator t = tMap.get(parentSig);
+			//replace the parameter with the IR value at the call site
+			if(((ExternalPara) v).getName().contains("@parameter") && n != null)
 			{
 				String tmp = ((ExternalPara) v).getName().split(":")[0].replaceAll("@parameter", "");
 				int index = Integer.parseInt(tmp);
@@ -872,10 +889,7 @@ public class JavaAndroid {
 				else 
 				{
 					String para = valueBox.get(index).getValue().toString();
-			
-				
-				
-					
+
 					if(para.contains("\""))
 						returnSet.add( new ConstantString(para));
 					else if(valueBox.get(index).getValue().getType().toString().equals("int"))
@@ -888,13 +902,13 @@ public class JavaAndroid {
 					else
 					{
 						
-						Set<Variable> newIR = new HashSet<>();
+						Set<Variable> newIR = new LinkedHashSet<>();
 	
 						//System.out.println(valueBox.toString()+para+t.getRD().getAllDef());
 						for(String line:t.getRD().getLineNumForUse(n, para))
 						{
 							if(t.getTranslatedIR(line)!=null)
-							newIR.addAll(t.getTranslatedIR(line));
+								newIR.addAll(t.getTranslatedIR(line));
 						}
 						
 						
@@ -902,6 +916,26 @@ public class JavaAndroid {
 						returnSet.addAll(newIR);
 					}
 					
+				}
+			}
+			//replace the field with all the field assignments, this is flow & context insensitive
+			else if(((ExternalPara) v).getName().matches("<.*>"))
+			{
+				String fieldName = ((ExternalPara) v).getName();
+				if(fieldMap.get(fieldName) == null)
+					returnSet.add(v);
+				else
+				{
+					for(String fieldDefLocation : fieldMap.get(fieldName))
+					{
+						String methodSig = fieldDefLocation.split("@")[0];
+						String line = fieldDefLocation.split("@")[1];
+						if(tMap.get(methodSig) != null && tMap.get(methodSig).getTranslatedIR(line) != null)
+						{
+							List<Variable> irs = tMap.get(methodSig).getTranslatedIR(line);
+							returnSet.addAll(tMap.get(methodSig).getTranslatedIR(line));
+						}
+					}
 				}
 			}
 			else
@@ -917,7 +951,7 @@ public class JavaAndroid {
 				List<Variable> tempOperand = new ArrayList<>();
 				for(Variable operand:operandList)
 				{
-					tempOperand.addAll( replaceExternal(operand,n,t));
+					tempOperand.addAll( replaceExternal(operand,n,parentSig,tMap,fieldMap));
 				}
 				newOperandList.add(tempOperand);
 			}
@@ -926,7 +960,7 @@ public class JavaAndroid {
 		}
 		else if(v instanceof T)
 		{
-			((T) v).setVariable(replaceExternal(((T) v).getVariable(),n,t).iterator().next());
+			((T) v).setVariable(replaceExternal(((T) v).getVariable(),n,parentSig,tMap,fieldMap).iterator().next());
 			returnSet.add(v);
 		}
 		else

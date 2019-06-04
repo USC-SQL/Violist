@@ -7,6 +7,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
@@ -17,9 +18,12 @@ import soot.ValueBox;
 import soot.jimple.AssignStmt;
 import soot.jimple.Constant;
 import soot.jimple.FieldRef;
+import soot.jimple.GotoStmt;
 import soot.jimple.IdentityStmt;
+import soot.jimple.IfStmt;
 import soot.jimple.InvokeStmt;
 import soot.jimple.Stmt;
+import soot.jimple.internal.ImmediateBox;
 import soot.jimple.internal.JimpleLocalBox;
 import edu.usc.sql.graphs.EdgeInterface;
 import edu.usc.sql.graphs.Node;
@@ -217,6 +221,20 @@ public class ReachingDefinition {
 	
 	//With array
 	
+	class Element implements Comparable<Element> {
+	    String line;
+	    int index;
+
+	    public Element(String line, int index) {
+	        this.line = line;
+	        this.index = index;
+	    }
+	    @Override
+	    public int compareTo(Element other) {
+	        return this.index - other.index;
+	    }
+	}
+	
 	public List<String> getLineNumForUse(NodeInterface n,String varName)
 	{
 		if(varName.contains("["))
@@ -225,18 +243,39 @@ public class ReachingDefinition {
 		
 		if(reachingDefMap.get(n)==null)
 			return line;
+		
+		PriorityQueue<Element> q = new PriorityQueue<>();
 		for(Def v:reachingDefMap.get(n).getInSet())
 		{
 			String defVarName;
+			int numIndex;
 			if(v.getVarName().contains("["))
+			{
 				defVarName = v.getVarName().substring(0,v.getVarName().indexOf("["));
+				String index = v.getVarName().substring(v.getVarName().indexOf("[")+1, v.getVarName().indexOf("]"));
+				try
+				{
+					numIndex = Integer.parseInt(index.replaceAll("[^0-9]", ""));
+				}
+				catch(Exception ex)
+				{
+					defVarName = v.getVarName();
+					numIndex = -1;
+				}
+			}
 			else
+			{
 				defVarName = v.getVarName();
+				numIndex = -1;
+			}
 				
 			if(defVarName.equals(varName))
-				line.add(v.getPosition());
+			{
+				q.add(new Element(v.getPosition(), numIndex));
+			}
 		}
-				
+		while(!q.isEmpty())
+			line.add(q.poll().line);
 		return line;
 			
 	}
@@ -382,7 +421,7 @@ class Def{
 	private String interpret(NodeInterface n)
 	{
 		Unit temp = ((Node<Unit>)n).getActualNode();
-		if(temp==null)
+		if(temp==null || temp instanceof IfStmt || temp instanceof GotoStmt)
 			return null;
 		else
 		{			
@@ -417,7 +456,10 @@ class Def{
 			}
 			else
 			{
-				if(temp.toString().contains("virtualinvoke")&&temp.getDefBoxes().isEmpty()&&(temp.toString().contains("java.lang.StringBuffer: java.lang.StringBuffer")||temp.toString().contains("java.lang.StringBuilder: java.lang.StringBuilder")))
+				if(temp.toString().contains("virtualinvoke") && temp.getDefBoxes().isEmpty() && 
+						(temp.toString().contains("java.lang.StringBuffer: java.lang.StringBuffer") || 
+						  temp.toString().contains("java.lang.StringBuilder: java.lang.StringBuilder") ||
+						   temp.toString().contains("android.content.ContentValues: void put(java.lang.String,")))
 				{
 					String defname = null;
 					for(ValueBox vb:temp.getUseBoxes())
@@ -427,6 +469,22 @@ class Def{
 							defname = vb.getValue().toString();
 							break;
 						}
+					}
+					if(temp.toString().contains("android.content.ContentValues: void put(java.lang.String,"))
+					{
+						String key = null;
+						for(ValueBox vb:temp.getUseBoxes())
+						{
+							if(vb instanceof ImmediateBox)
+							{
+								key = vb.getValue().toString();
+								break;
+							}
+						}
+						if(key == null)
+							return null;
+						else
+							defname += "[" + key.hashCode() + "]";
 					}
 					return defname;
 					
