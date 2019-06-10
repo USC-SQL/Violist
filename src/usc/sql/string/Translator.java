@@ -671,6 +671,7 @@ public class Translator {
 									//!!!! There may be duplicate terms 
 									varList.add(tempVar);
 									
+									/*
 									if(tempVar instanceof ExternalPara)
 									{	
 										ExternalPara field = (ExternalPara) tempVar;
@@ -687,6 +688,7 @@ public class Translator {
 										}
 										
 									}
+									*/
 								}
 							}
 							else

@@ -132,7 +132,7 @@ public class InterRe {
 		
 		if(actualNode!=null)
 		{
-			//System.out.println(actualNode);
+			//System.out.println(n.getOffset().toString()+":"+actualNode);
 			sourceLineNumber = actualNode.getJavaSourceStartLineNumber();
 			bytecodeOffset = getBytecodeOffset(actualNode);
 			if(targetSignature!=null&&actualNode.containsInvokeExpr())
@@ -208,16 +208,26 @@ public class InterRe {
 			//case : field
 			if(!sootDef.isEmpty() && sootDef.get(0).getValue() instanceof FieldRef)
 			{
-				FieldRef v=(FieldRef) sootDef.get(0).getValue();
-				String fieldSignature = v.getField().getSignature();
-				String fieldDefLocation = methodName + "@" + n.getOffset().toString();
-				if(field.keySet().contains(fieldSignature))
-					field.get(fieldSignature).add(fieldDefLocation);
-				else
+				//only add field assignment in init 
+				if(methodName.contains("void <clinit>()")||methodName.contains("void <init>(")
+						||methodName.contains("void onCreate(android.os.Bundle)"))
 				{
-					Set<String> s = new HashSet<>();
-					s.add(fieldDefLocation);
-					field.put(fieldSignature, s);
+					
+					FieldRef v=(FieldRef) sootDef.get(0).getValue();
+					String fieldSignature = v.getField().getSignature();
+					///if(fieldSignature.contains("com.inmobi.commons.analytics.db.AnalyticsDatabaseManager"))
+					//{System.out.println(methodName);
+					//System.out.println(fieldSignature);
+					//}
+					String fieldDefLocation = methodName + "@" + n.getOffset().toString();
+					if(field.keySet().contains(fieldSignature))
+						field.get(fieldSignature).add(fieldDefLocation);
+					else
+					{
+						Set<String> s = new HashSet<>();
+						s.add(fieldDefLocation);
+						field.put(fieldSignature, s);
+					}
 				}
 				/*
 				String value;

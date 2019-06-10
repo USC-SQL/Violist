@@ -81,9 +81,12 @@ public class Interpreter {
 		}
 	}
 	
+	
 	private Set<String> interpretField(String fieldName)
 	{
 		Set<String> s = new LinkedHashSet<>();
+		s.add("Unknown@FIELD@"+fieldName + "!!!");
+		/*
 		if(fieldMap==null)
 			s.add("Unknown@FIELD@"+fieldName + "!!!");
 		else
@@ -103,6 +106,7 @@ public class Interpreter {
 				s.add("Unknown@FIELD@"+fieldName + "!!!");
 				//s.add(fieldName);
 		}
+		*/
 		return s;
 	}
 	

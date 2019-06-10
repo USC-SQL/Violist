@@ -12,6 +12,8 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
 
+import com.sun.org.apache.bcel.internal.classfile.InnerClass;
+
 import soot.Unit;
 import soot.Value;
 import soot.ValueBox;
@@ -129,6 +131,7 @@ public class ReachingDefinition {
 				}
 				// Union the gen set with (in set - kill set) to the out set of node rn
 				
+				//Add all the gen to out
 				if(!reachingDefMap.get(n).getGenSet().isEmpty())
 					for (Def gennode : reachingDefMap.get(n).getGenSet())
 						if (!reachingDefMap.get(n).getOutSet().contains(gennode))
@@ -137,7 +140,7 @@ public class ReachingDefinition {
 							reachingDefMap.get(n).getOutSet().add(gennode);
 						}
 						
-				
+				//Gen is empty, add all the in to out
 				if(reachingDefMap.get(n).getGenSet().isEmpty())
 				{	for(Def innode : reachingDefMap.get(n).getInSet())
 						if (!reachingDefMap.get(n).getOutSet().contains(innode))
@@ -146,15 +149,18 @@ public class ReachingDefinition {
 							reachingDefMap.get(n).getOutSet().add(innode);
 						}
 				}
+				//Gen is not empty, kill the corresponding In
 				else
 				{
 					String name = reachingDefMap.get(n).getGenSet().iterator().next().getVarName();
 					for (Def innode : reachingDefMap.get(n).getInSet())
-						if (!reachingDefMap.get(n).getOutSet().contains(innode)&&!innode.getVarName().equals(name))
+					{
+						if (!reachingDefMap.get(n).getOutSet().contains(innode)&&!hasSameName(innode.getVarName(), name))
 						{
 							change = true;
 							reachingDefMap.get(n).getOutSet().add(innode);
 						}
+					}
 				}
 
 			}
@@ -162,6 +168,16 @@ public class ReachingDefinition {
 		//System.out.println(count);
 	}
 
+	private boolean hasSameName(String inVarName, String genVarName)
+	{
+		boolean isArrayElement = inVarName.contains("[") && !inVarName.contains("[]");
+		if(!isArrayElement)
+			return inVarName.equals(genVarName);
+		else
+		{
+			return inVarName.substring(0, inVarName.indexOf("[")).equals(genVarName);
+		}
+	}
 	
 	public void outputToConsole()
 	{
@@ -275,7 +291,10 @@ public class ReachingDefinition {
 			}
 		}
 		while(!q.isEmpty())
-			line.add(q.poll().line);
+		{
+			String l = q.poll().line;
+			line.add(l);
+		}
 		return line;
 			
 	}
@@ -404,14 +423,20 @@ public class ReachingDefinition {
 	}
 }
 class Def{
+	private String varName;
+	private String position;
+	
 	public String getVarName() {
 		return varName;
 	}
 	public String getPosition() {
 		return position;
 	}
-	private String varName;
-	private String position;
+	public String toString()
+	{
+		return position + ":" + varName;
+	}
+
 	public Def(NodeInterface n)
 	{
 		//System.out.println(n.toString());

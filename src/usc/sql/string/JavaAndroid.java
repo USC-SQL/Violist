@@ -152,8 +152,6 @@ public class JavaAndroid {
     	for(Entry<String, Set<Variable>> callPathIdToIREntry : callPathIdToIR.entrySet())
     	{
     		String callPathId = callPathIdToIREntry.getKey();
-    		//System.out.println("@@@" + callPathId);
-    		//System.out.println(callPathIdToCallPath);
     		Set<Variable> IRs = replaceExternalInCallChain(callPathIdToIREntry.getValue(),
     				callPathIdToCallPath.get(callPathId), tMap, fieldMap);
     		
@@ -361,7 +359,6 @@ public class JavaAndroid {
     		
     		for(String labelwithnum:t.getTargetLines().keySet())
     		{
-    			
     			Set<Variable> targetIR = new LinkedHashSet<>();
     			for(String line: t.getTargetLines().get(labelwithnum))
     			{
@@ -380,8 +377,12 @@ public class JavaAndroid {
     					
     				}
     				if(t.getTranslatedIR(line)!=null)
+    				{
+
     					targetIR.addAll(t.getTranslatedIR(line));
+    				}
     			}
+
     			labelIR.put(labelwithnum, targetIR);
     		}
     		
@@ -864,7 +865,7 @@ public class JavaAndroid {
 			Map<String,Translator> tMap,
 			Map<String,Set<String>> fieldMap)
 	{
-
+		
 		Set<Variable> returnSet = new LinkedHashSet<>();
 		if(v instanceof ExternalPara)
 		{
@@ -926,15 +927,19 @@ public class JavaAndroid {
 					returnSet.add(v);
 				else
 				{
+					//System.out.println(fieldName);
+					//System.out.println(fieldMap.get(fieldName).size());
 					for(String fieldDefLocation : fieldMap.get(fieldName))
 					{
+						//System.out.println("!" + fieldDefLocation);
 						String methodSig = fieldDefLocation.split("@")[0];
 						String line = fieldDefLocation.split("@")[1];
 						if(tMap.get(methodSig) != null && tMap.get(methodSig).getTranslatedIR(line) != null)
 						{
 							List<Variable> irs = tMap.get(methodSig).getTranslatedIR(line);
-							returnSet.addAll(tMap.get(methodSig).getTranslatedIR(line));
+							returnSet.addAll(irs);
 						}
+						//System.out.println(returnSet.size() + returnSet.toString());
 					}
 				}
 			}
