@@ -261,7 +261,6 @@ public class Translator {
 
 		for(Entry<String,ArrayList<Variable>> en:newUseMap.entrySet())
 		{
-			
 			newUseMapLoopPrevious.put(en.getKey(), copyVar(en.getValue()));	
 			for(Variable tempV:newUseMapLoopPrevious.get(en.getKey()))
 			{
@@ -662,8 +661,6 @@ public class Translator {
 						String line = ((InternalVar) v).getLine();
 						if(visited.contains(line))
 						{	//if(n.getOffset().toString().equals(line))
-							
-							
 							if(newUseMap.get(line)!=null)
 							{
 								for(Variable tempVar:newUseMap.get(line))

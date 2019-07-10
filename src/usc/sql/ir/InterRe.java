@@ -107,7 +107,6 @@ public class InterRe {
 		{
 			interpret(n);
 		}		
-		
 	}
 	
 
@@ -132,7 +131,8 @@ public class InterRe {
 		
 		if(actualNode!=null)
 		{
-			//System.out.println(n.getOffset().toString()+":"+actualNode);
+			//if(methodName.contains("<qi: void <clinit>()>"))
+			//  System.out.println(methodName + ":"  +n.getOffset().toString()+":"+actualNode);
 			sourceLineNumber = actualNode.getJavaSourceStartLineNumber();
 			bytecodeOffset = getBytecodeOffset(actualNode);
 			if(targetSignature!=null&&actualNode.containsInvokeExpr())
@@ -208,18 +208,14 @@ public class InterRe {
 			//case : field
 			if(!sootDef.isEmpty() && sootDef.get(0).getValue() instanceof FieldRef)
 			{
+				FieldRef v=(FieldRef) sootDef.get(0).getValue();
+				String fieldSignature = v.getField().getSignature();
+				String fieldDefLocation = methodName + "@" + n.getOffset().toString();
 				//only add field assignment in init 
 				if(methodName.contains("void <clinit>()")||methodName.contains("void <init>(")
 						||methodName.contains("void onCreate(android.os.Bundle)"))
 				{
-					
-					FieldRef v=(FieldRef) sootDef.get(0).getValue();
-					String fieldSignature = v.getField().getSignature();
-					///if(fieldSignature.contains("com.inmobi.commons.analytics.db.AnalyticsDatabaseManager"))
-					//{System.out.println(methodName);
-					//System.out.println(fieldSignature);
-					//}
-					String fieldDefLocation = methodName + "@" + n.getOffset().toString();
+
 					if(field.keySet().contains(fieldSignature))
 						field.get(fieldSignature).add(fieldDefLocation);
 					else
@@ -229,31 +225,24 @@ public class InterRe {
 						field.put(fieldSignature, s);
 					}
 				}
-				/*
-				String value;
-				if(sootUse.size()==1)								
-					value = sootUse.get(0).getValue().toString();				
-				else
-					value = sootUse.get(1).getValue().toString();
-
-				if(value.contains("\""))
+				//handle static string array field assignment 
+				//e.g. <sql.sand.abstraction.testcase.APIRead: java.lang.String[] a> = $r0
+				if(v.getType().toString().equals("java.lang.String[]") && sootUse.size() == 1)
 				{
-					//value = value.replaceFirst("\"", "");
-					//value = value.substring(0,value.lastIndexOf("\""));
-					value = value.replaceAll("\"", "");
-					String fieldSignature = v.getField().getSignature();
-					if(field.keySet().contains(fieldSignature))
-						field.get(fieldSignature).add(value);
-					else
+					String use = sootUse.get(0).getValue().toString();
+					//the constant string has been inlined by the compiler or soot, no need to handle
+					if(regionDef.get(use)!=null)
 					{
-						Set<String> s = new HashSet<>();
-						s.add(value);
-						field.put(fieldSignature, s);
+						if(regionDef.get(use))
+						{
+							lineUseMap.put(n.getOffset().toString(), new InternalVar(use));
+						}
+						else
+						{
+							lineUseMap.put(n.getOffset().toString(), new ExternalPara(use, methodName, sourceLineNumber, bytecodeOffset));
+						}
 					}
 				}
-				*/
-				
-				
 			}
 			
 			
@@ -541,8 +530,21 @@ public class InterRe {
 				
 				else
 				{
+					//case: r = "something"
+					if(actualNode.toString().matches("(.r|r)([0-9]*)(.*) = \"(.*)\""))
+					{
+						for(ValueBox vb:sootUse)
+						{
+							if(!(vb instanceof JimpleLocalBox || vb instanceof ImmediateBox))
+							{
+								String use = vb.getValue().toString();
+								if(use.contains("\""))
+									lineUseMap.put(n.getOffset().toString(), new ConstantString(use));
+							}
+						}
+					}
 					//case: r = r.something
-					if(actualNode.toString().matches("(.r|r)([0-9]*)(.*) = (.r|r)([0-9]*)(.*)"))
+					else if(actualNode.toString().matches("(.r|r)([0-9]*)(.*) = (.r|r)([0-9]*)(.*)"))
 					{
 						
 						//case: r = field
@@ -590,21 +592,7 @@ public class InterRe {
 							}
 						}
 					}
-					else if(actualNode.toString().matches("(.r|r)([0-9]*)(.*) = \"(.*)\""))
-					{
-						for(ValueBox vb:sootUse)
-						{
-							if(!(vb instanceof JimpleLocalBox || vb instanceof ImmediateBox))
-							{
-								String use = vb.getValue().toString();
-								if(use.contains("\""))
-									lineUseMap.put(n.getOffset().toString(), new ConstantString(use));
 
-							
-							
-							}
-						}
-					}
 					else if(actualNode.toString().matches("(.r|r)([0-9]*)(.*) = (.)*(.r|r)([0-9]*)")&&actualNode.toString().contains("(java.lang.String[])"))
 					{
 						for(ValueBox vb:sootUse)
@@ -846,8 +834,8 @@ public class InterRe {
 			//b0 = 1,$i1 = b0 + 1
 			else
 			{
-				lineUseMap.put(n.getOffset().toString(), new ExternalPara("Unknown", methodName, sourceLineNumber, bytecodeOffset));
-			//	System.out.println(actualNode.getDefBoxes()+"     "+actualNode.getUseBoxes());
+				if(!lineUseMap.containsKey(n.getOffset().toString()))
+					lineUseMap.put(n.getOffset().toString(), new ExternalPara("Unknown", methodName, sourceLineNumber, bytecodeOffset));
 			}
 			
 

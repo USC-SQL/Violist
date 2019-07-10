@@ -151,9 +151,12 @@ public class JavaAndroid {
     	
     	for(Entry<String, Set<Variable>> callPathIdToIREntry : callPathIdToIR.entrySet())
     	{
+    		
     		String callPathId = callPathIdToIREntry.getKey();
     		Set<Variable> IRs = replaceExternalInCallChain(callPathIdToIREntry.getValue(),
     				callPathIdToCallPath.get(callPathId), tMap, fieldMap);
+    		
+
     		
     		Interpreter intp = new Interpreter(IRs,fieldMap,maxloop);
 			//InterpreterPath intp = new InterpreterPath(newIR,fieldMap,maxloop);
@@ -171,87 +174,6 @@ public class JavaAndroid {
 			analysisResult.put(callPathId, possibleValues);
     	}
     	
-    	/*
-    	for(Entry<String,Map<String,Set<Variable>>> enout: targetMap.entrySet())
-    	{
-    		String signature = enout.getKey();
-    		int i1 = signature.indexOf("<"),i2 = signature.indexOf(":");
-    		for(Entry<String,Set<Variable>> irSignature:enout.getValue().entrySet())
-    		{
-
-	    		Set<Variable> newIR = replaceExternal(irSignature.getValue(),signature,paraMap,tMap);
-	    		
-	    		//statistic.add(en.getKey()+":"+getWidth(newIR)+" "+getHeight(newIR)+" "+getLoopDepth(newIR)+" "+getLoopCount(newIR)+" "+getExternalCount(newIR));
-
-
-	    		Interpreter intp = new Interpreter(newIR,fieldMap,maxloop);
-				//InterpreterPath intp = new InterpreterPath(newIR,fieldMap,maxloop);
-				Set<String> value = new HashSet<>();
-				value.addAll(intp.getValueForIR());
-	    		
-				if(value.isEmpty())
-					value.add("Unknown@INTERPRET");
-
-
-    			//if(!value.isEmpty())
-	    		//if(!emptyOrContainUnknown(value))  			
-	    		{
-        			output.put(irSignature.getKey(), newIR);
-	    			String[] hotspot = irSignature.getKey().split("@");
-	    			
-	    			StringBuilder result = new StringBuilder();
-
-    				//System.out.println("Method Name: "+ hotspot[0]);
-    				result.append("Method Name: "+ hotspot[0]+"\n");
-    				//System.out.println("Source Line Number: "+ hotspot[1]);
-    				result.append("Source Line Number: "+ hotspot[1]+"\n");
-    				//System.out.println("Bytecode Offset: "+hotspot[2]);
-    				result.append("Bytecode Offset: "+hotspot[2]+"\n");
-    				//System.out.println("Nth String Parameter: " + hotspot[3]);
-    				result.append("Nth String Parameter: " + hotspot[3]+"\n");
-    				//System.out.println("Jimple: "+ hotspot[4]);
-    				//result.append("Jimple: "+ hotspot[4]+"\n");
-
-    				Set<String> possibleValues = new HashSet<>();
-    				for(Variable targetIR : newIR)
-    				{
-    					//System.out.println("IR:"+targetIR);
-    					result.append("IR:"+targetIR+"\n");
-    					for(String intpValue: targetIR.getInterpretedValue())
-    					{
-    						String replace = intpValue.trim().replaceAll("\\\\'","'");
-    						//System.out.println("Value:"+replace);
-    						result.append("Value:"+replace+"\n");
-    						possibleValues.add(replace);
-    					}
-    				}
-    				//System.out.println();
-    				//Method Signature@Bytecode Offset@Parameter Index
-	    			analysisResult.put(hotspot[0]+"@"+hotspot[1]+"@"+hotspot[2]+"@"+hotspot[3],possibleValues);
-	    			
-		    		try
-		    		{
-		    			if(outputPath != null) {
-                            PrintWriter bw = new PrintWriter(new FileWriter(outputPath + "result.txt", true));
-                            //PrintWriter bw = new PrintWriter(new FileWriter(wfolder+en.getKey().replaceAll("\"", "")+".txt",true));
-                            bw.println(result);
-
-                            bw.flush();
-                            bw.close();
-                        }
-		    		}
-		    		catch(IOException e)
-		    		{
-		    			e.printStackTrace();
-		    		}
-	    		}
-
-	    	}
-    	}
-    	*/
-    	
-    	//System.out.println("Total Trans: "+ totalTranslate);
-    	//System.out.println("Total Interp: "+ totalInterpret);
 		removeSummaryFolder(sFolder);
 	}
 
@@ -395,234 +317,213 @@ public class JavaAndroid {
     	}
 	}
 	
-	
-	private void InterpretCheckerJava(String arg0,String arg1,String arg2,String summaryFolder,String wfolder)
+
+
+	private Set<Variable> replaceExternalInCallChain(Set<Variable> IRs, 
+			Map<NodeInterface, String> callChainNodeToContainingMethod, 
+			Map<String,Translator> tMap, Map<String, Set<String>> fieldMap)
 	{
-		//"/home/yingjun/Documents/StringAnalysis/MethodSummary/"
-		//"Usage: rt.jar app_folder classlist.txt"
-
-		JavaApp App;
-		if(arg1.contains("bookstore"))
+		boolean existParaOrField = false;
+		for(Variable v:IRs)
 		{
-
-			App=new JavaApp(arg0,arg1,arg2,"void _jspService(javax.servlet.http.HttpServletRequest,javax.servlet.http.HttpServletResponse)");
+			if(containParaOrField(v))
+				existParaOrField = true;
 		}
-		else{
-			App=new JavaApp(arg0,arg1,arg2,"void main(java.lang.String[])");
+		if(!existParaOrField)
+		{	
+			return IRs;
 		}
-		Map<String,Map<String,Set<Variable>>> targetMap = new HashMap<>();
-    	Map<String,Set<NodeInterface>> paraMap = new HashMap<>();
-    	Map<String,Set<String>> fieldMap = new HashMap<>();
-		Map<String,Translator> tMap = new HashMap<>();
-		long totalTranslate = 0,totalInterpret = 0;
-		
-		
-		long t1,t2;
-		
+		else
+		{
+			//replace parameters
+			Set<Variable> newIRs = new LinkedHashSet<>();
+			newIRs.addAll(IRs);
+			if(!callChainNodeToContainingMethod.isEmpty())
+			{
+				//reverse the order so that it is from callee to caller
+				List<NodeInterface> reverseOrderedKeys = new ArrayList<>(callChainNodeToContainingMethod.keySet());
+				Collections.reverse(reverseOrderedKeys);
+	
 
-		 File sFolder = new File(summaryFolder);
-		 File wFolder = new File(wfolder);
-		 // if the directory does not exist, create it
-		 if (!sFolder.exists()) {
-		     System.out.println("creating directory: " + sFolder);
-		     boolean result = false;
-		     try{
-		    	 sFolder.mkdir();
-		         result = true;
-		     } 
-		     catch(SecurityException se){
-		    	 System.out.println("Create a folder named : \"MethodSummary\" under the app folder");
-		     }        
-		     if(result) {    
-		         System.out.println("DIR created");  
-		     }
-		 }
-		 if (!wFolder.exists()) {
-		     System.out.println("creating directory: " + wFolder);
-		     boolean result = false;
-		     try{
-		    	 wFolder.mkdir();
-		         result = true;
-		     } 
-		     catch(SecurityException se){
-		    	 System.out.println("Create a folder named : \"Output\" under the app folder");
-		     }        
-		     if(result) {    
-		         System.out.println("DIR created");  
-		     }
-		 }
+				for (NodeInterface n : reverseOrderedKeys) {
+					
+					Stmt actualNode = ((Node<Stmt>) n).getActualNode();
+					
+					
+					if(actualNode.getInvokeExpr().getArgCount() == 0)
+						break;
+					
+				    String parentSig = callChainNodeToContainingMethod.get(n);
+				    Set<Variable> externalReplacedIRs = new LinkedHashSet<>();
+				    for(Variable v : newIRs)
+				    {
+				    	Set<Variable> newV = replaceExternal(v, n, parentSig, tMap, fieldMap);
+				    	externalReplacedIRs.addAll(copyVarSet(newV));
+				    }
+				    newIRs = externalReplacedIRs;
+				}
+			
+			}
+			//replace fields
+			Set<Variable> externalReplacedIRs = new LinkedHashSet<>();
+			for(Variable v : newIRs)
+		    {
+		    	Set<Variable> newV = replaceExternal(v, null, null, tMap, fieldMap);
+		    	externalReplacedIRs.addAll(copyVarSet(newV));
+		    }
+			return externalReplacedIRs;
+			
+		}
 
-
-    	for(CFGInterface cfg:callGraph.getRTOInterface())
-    	{
-    		//System.out.println(cfg.getSignature());
-    		String signature=cfg.getSignature();
-    		
-    	//	if(!signature.contains("SubstringOfNull"))
-    	//		continue;
-    		
-    		
-    		if(signature.equals("<LoggerLib.Logger: void <clinit>()>")||signature.equals("<LoggerLib.Logger: void reportString(java.lang.String,java.lang.String)>"))
-    		continue;
-    		
-    		//field																	def missing						
-
-    		
-
-    		
-    		
-      		//for(int i=1;i<=loopCount;i++)
-    		//{  		
-    		
-    		
-
-    		t1 = 	System.currentTimeMillis();
-    		LayerRegion lll = new LayerRegion(null);
-    		ReachingDefinition rd = new ReachingDefinition(cfg.getAllNodes(), cfg.getAllEdges(),lll.identifyBackEdges(cfg.getAllNodes(),cfg.getAllEdges(), cfg.getEntryNode()));	   		
-    		rds.put(signature, rd);
-    		
-    		LayerRegion lr = new LayerRegion(cfg);
-    	
-    		//System.out.println(signature);
-    		Translator t = new Translator(rd, lr,signature,summaryFolder,targetSignature);
-    	
-    		tMap.put(signature, t);
-    		paraMap.putAll(t.getParaMap());
-    		
-    		for(Entry<String,Set<String>> en: t.getFieldMap().entrySet())
-    		{
-    			if(fieldMap.containsKey(en.getKey()))
-    				fieldMap.get(en.getKey()).addAll(en.getValue());
-    			else
-    				fieldMap.put(en.getKey(), en.getValue());
-    		}
-    		//fieldMap.putAll(t.getFieldMap());
-    		 		
-    		if(t.getTargetLines().isEmpty())
-    			continue;
-    		
-    		//Set<String> value = new HashSet<>();
-    	
-    		
-    		//label set<IR>
-    		Map<String,Set<Variable>> labelIR = new HashMap<>();
-    		
-    		for(String labelwithnum:t.getTargetLines().keySet())
-    		{
-    			Set<Variable> targetIR = new LinkedHashSet<>();
-    			for(String line: t.getTargetLines().get(labelwithnum))
-    				if(t.getTranslatedIR(line)!=null)
-    					targetIR.addAll(t.getTranslatedIR(line));
-    			
-    	
-    			//if(targetIR.isEmpty())
-    			//	targetIR.add(new ExternalPara("Unknown"));
-    			labelIR.put(labelwithnum, targetIR);
-    		}
-    		
-
-    	
-    		
-    		if(!targetMap.containsKey(signature))
-    			targetMap.put(signature, labelIR);
-    	 		
-    		t2 = 	System.currentTimeMillis();
-    		totalTranslate+=t2-t1;
-    	
-    	}
-		
-    	//Key : signature of method that contains the targets
-    	//Value: a map mapping the line id of the target string to its IR
-    	for(Entry<String,Map<String,Set<Variable>>> enout: targetMap.entrySet())
-    	{
-    		String signature = enout.getKey();
-    		
-    		//System.out.println("\n"+signature);
-    		
-
-    		
-    		for(Entry<String,Set<Variable>> en:enout.getValue().entrySet())
-    		{
-    		
-    			
-    				
-	    		t1 = System.currentTimeMillis();
-	    		
-	    		
-	    		Set<Variable> newIR = replaceExternal(en.getValue(),signature,paraMap,tMap,fieldMap);
-	    		t2 = System.currentTimeMillis();
-	    		totalTranslate += t2-t1;
-	    		
-	    		
-	    		int loopCount = 3;	    			    		
-	    		String tempSig = signature.replaceAll("TestCases.", "");
-	    		int dot = tempSig.indexOf(".");
-	    		String tt = tempSig.substring(dot+1);
-	    		
-	    		if(tt.contains("Mix")||tt.contains("NestedLoop"))
-	    			loopCount = 2;
-	    		else
-	    			loopCount = 3;
-	    		
-	    		Set<String> value = new LinkedHashSet<>();
-	    		
-	    		t1 = System.currentTimeMillis();
-    			Interpreter intp = new Interpreter(newIR,fieldMap,loopCount);
-    			
-    			value.addAll(intp.getValueForIR());
-
-	    		
-	    		//add const label
-	    		
-	    		if(tMap.get(signature).getLabelConstant().get(en.getKey())!=null)
-	    		{
-	    		//	value.add(tMap.get(signature).getLabelConstant().get(en.getKey()).replaceAll("\"", ""));
-	    		}
-	    		
-    			t2 = System.currentTimeMillis();
-    			
-    			totalInterpret += t2-t1;
-	    		
-	    		//System.out.println("Label: "+en.getKey());
-	    		//System.out.println("Output: "+value);
-	    		
-	    		if(!emptyOrContainUnknown(value))
-	    		{
-	    			//System.out.println(en.getKey()+":"+value+";"+value.isEmpty()+value.iterator().next().equals(""));
-	    			
-		    		try
-		    		{
-		    			BufferedWriter bw = new BufferedWriter(new FileWriter(wfolder+en.getKey().replaceAll("\"", "")+".txt",true));
-		    			//BufferedWriter bw = new BufferedWriter(new FileWriter(wfolder+"output.txt",true));
-		    			//bw.write(en.getKey().replaceAll("\"", ""));
-		    			//bw.newLine();
-		    			for(String s:value)
-		    			{
-		    				
-		    				bw.write(s);
-		    				bw.newLine();
-		    			}
-		    			
-		    			bw.flush();
-		    			bw.close();
-		    		}
-		    		catch(IOException e)
-		    		{
-		    			e.printStackTrace();
-		    		}
-	    		}
-
-	    
-	    	}
-    		
-    	    
-
-    	}
-    	
-    	System.out.println("Total Trans: "+ totalTranslate);
-    	System.out.println("Total Interp: "+ totalInterpret);
-        removeSummaryFolder(sFolder);
 	}
+
+	
+	boolean containParaOrField(Variable v)
+	{
+
+			if(v instanceof ExternalPara)
+			{
+				String name = ((ExternalPara) v).getName();
+				if(name.contains("@parameter") || name.matches("<.*>"))
+					return true;
+				else
+					return false;
+			}
+			else if(v instanceof Expression)
+			{
+				for(List<Variable> operandList:((Expression) v).getOperands())
+				{
+					for(Variable operand: operandList)
+					if(containParaOrField(operand))
+						return true;
+				}
+				return false;
+			}
+			else if(v instanceof T)
+			{
+			
+				return containParaOrField(((T) v).getVariable());
+			}
+			else
+			return false;
+	}
+	
+	
+	private Set<Variable> replaceExternal(Variable v,NodeInterface n, String parentSig, 
+			Map<String,Translator> tMap,
+			Map<String,Set<String>> fieldMap)
+	{
+		Set<Variable> returnSet = new LinkedHashSet<>();
+		if(v instanceof ExternalPara)
+		{
+			
+			Translator t = tMap.get(parentSig);
+			//replace the parameter with the IR value at the call site
+			if(((ExternalPara) v).getName().contains("@parameter") && n != null)
+			{
+				String tmp = ((ExternalPara) v).getName().split(":")[0].replaceAll("@parameter", "");
+				int index = Integer.parseInt(tmp);
+				
+			//	System.out.println(index +" "+valueBox);
+			
+				List<ValueBox> valueBox = ((Unit)((Node)n).getActualNode()).getUseBoxes();
+
+				if(!(valueBox.get(0) instanceof ImmediateBox))
+					index = index+1;
+				
+			//	System.out.println(index+"->index-> "+valueBox);
+				
+				if(index >= valueBox.size())
+					returnSet.add(v);
+				else 
+				{
+					String para = valueBox.get(index).getValue().toString();
+					String type = valueBox.get(index).getValue().getType().toString();
+					if(para.contains("\""))
+						returnSet.add( new ConstantString(para));
+					else if(type.equals("int") || type.equals("long"))
+					{
+						if(!para.contains("i")&&!para.contains("b")&&!para.contains("l"))
+							returnSet.add( new ConstantString(""+Integer.parseInt(para.replace("L", ""))));
+						else
+							returnSet.add(v);
+					}
+					else
+					{
+						
+				
+	
+						//System.out.println(valueBox.toString()+para+t.getRD().getAllDef());
+						List<String> defineLines = t.getRD().getLineNumForUse(n, para);
+						if(defineLines.isEmpty())
+							returnSet.add(v);
+						else
+						{
+							Set<Variable> newIR = new LinkedHashSet<>();
+							for(String line: defineLines)
+							{
+								if(t.getTranslatedIR(line)!=null)
+									newIR.addAll(t.getTranslatedIR(line));
+							}
+							returnSet.addAll(newIR);
+						}
+					}		
+				}
+			}
+			//replace the field with all the field assignments, this is flow & context insensitive
+			else if(((ExternalPara) v).getName().matches("<.*>"))
+			{
+				String fieldName = ((ExternalPara) v).getName();
+				if(fieldMap.get(fieldName) == null)
+					returnSet.add(v);
+				else
+				{
+					//System.out.println(fieldName);
+					//System.out.println(fieldMap.get(fieldName).size());
+					for(String fieldDefLocation : fieldMap.get(fieldName))
+					{
+						String methodSig = fieldDefLocation.split("@")[0];
+						String line = fieldDefLocation.split("@")[1];
+						if(tMap.get(methodSig) != null && tMap.get(methodSig).getTranslatedIR(line) != null)
+						{
+							List<Variable> irs = tMap.get(methodSig).getTranslatedIR(line);
+							returnSet.addAll(irs);
+						}
+						//System.out.println(returnSet.size() + returnSet.toString());
+					}
+				}
+			}
+			else
+				returnSet.add(v);
+			
+		}
+
+		else if(v instanceof Expression)
+		{
+			List<List<Variable>> newOperandList = new ArrayList<>();
+			for(List<Variable> operandList:((Expression) v).getOperands())
+			{
+				List<Variable> tempOperand = new ArrayList<>();
+				for(Variable operand:operandList)
+				{
+					tempOperand.addAll( replaceExternal(operand,n,parentSig,tMap,fieldMap));
+				}
+				newOperandList.add(tempOperand);
+			}
+ 			((Expression) v).setOperands(newOperandList);
+ 			returnSet.add(v);
+		}
+		else if(v instanceof T)
+		{
+			((T) v).setVariable(replaceExternal(((T) v).getVariable(),n,parentSig,tMap,fieldMap).iterator().next());
+			returnSet.add(v);
+		}
+		else
+			returnSet.add(v);
+		
+		return returnSet;
+	}
+	
 	public Map<String, Set<Variable>> getIRs()
 	{
 		return output;
@@ -713,266 +614,8 @@ public class JavaAndroid {
 		else
 			return v;
 	}
-
-	private Set<Variable> replaceExternalInCallChain(Set<Variable> IRs, 
-			Map<NodeInterface, String> callChainNodeToContainingMethod, 
-			Map<String,Translator> tMap, Map<String, Set<String>> fieldMap)
-	{
-		//System.out.println("!!!" + IRs + "\n"+callChainNodeToContainingMethod);
-		boolean existParaOrField = false;
-		for(Variable v:IRs)
-		{
-			if(containParaOrField(v))
-				existParaOrField = true;
-		}
-		if(!existParaOrField)
-		{	
-			return IRs;
-		}
-		else
-		{
-			if(!callChainNodeToContainingMethod.isEmpty())
-			{
-				//reverse the order so that it is from callee to caller
-				List<NodeInterface> reverseOrderedKeys = new ArrayList<>(callChainNodeToContainingMethod.keySet());
-				Collections.reverse(reverseOrderedKeys);
-	
-				Set<Variable> newIRs = new LinkedHashSet<>();
-				newIRs.addAll(IRs);
-				for (NodeInterface n : reverseOrderedKeys) {
-					
-					Stmt actualNode = ((Node<Stmt>) n).getActualNode();
-					
-					
-					if(actualNode.getInvokeExpr().getArgCount() == 0)
-						break;
-					
-				    String parentSig = callChainNodeToContainingMethod.get(n);
-				    Set<Variable> externalReplacedIRs = new LinkedHashSet<>();
-				    for(Variable v : newIRs)
-				    {
-				    	Set<Variable> newV = replaceExternal(v, n, parentSig, tMap, fieldMap);
-				    	externalReplacedIRs.addAll(copyVarSet(newV));
-				    }
-				    newIRs = externalReplacedIRs;
-				}
-				return newIRs;
-			}
-			else
-			{
-				Set<Variable> newIRs = new LinkedHashSet<>();
-				newIRs.addAll(IRs);
-				Set<Variable> externalReplacedIRs = new LinkedHashSet<>();
-				for(Variable v : newIRs)
-			    {
-			    	Set<Variable> newV = replaceExternal(v, null, null, tMap, fieldMap);
-			    	externalReplacedIRs.addAll(copyVarSet(newV));
-			    }
-				return externalReplacedIRs;
-			}
-		}
-
-	}
-	private Set<Variable> replaceExternal(Set<Variable> IRs,String signature,
-			Map<String,Set<NodeInterface>> paraMap,Map<String,Translator> tMap, Map<String, Set<String>> fieldMap)
-	{
-
-		boolean existPara = false;
-		for(Variable v:IRs)
-		{
-			if(containParaOrField(v))
-				existPara = true;
-		}
-		if(!existPara)
-		{	
-			return IRs;
-		}
-		else
-		{
-			Set<Variable> vSet = new LinkedHashSet<>();
-			for(Variable v: IRs)
-			{
-				if(paraMap.get(signature)==null)
-					vSet.add(v);
-				else
-				{
-					
-					if(callGraph.getParents(signature).isEmpty())
-						vSet.add(copyVar(v));
-					else
-					{
-						for(String parentSig:callGraph.getParents(signature))
-						{
-							Set<Variable> newIR = new LinkedHashSet<>();
-							
-							if(tMap.get(parentSig)!=null&&tMap.get(parentSig).getParaMap()!=null)
-								if(tMap.get(parentSig).getParaMap().get(signature)!=null)
-								{
-									for(NodeInterface n:tMap.get(parentSig).getParaMap().get(signature))
-										newIR.addAll(replaceExternal(copyVar(v),n, parentSig, tMap, fieldMap));
-									
-									Set<Variable> copy = new LinkedHashSet<>();
-									for(Variable vv:newIR)
-										copy.add(copyVar(vv));
-									
-								//	System.out.println(signature);
-									vSet.addAll(replaceExternal(copy,parentSig, paraMap, tMap, fieldMap));
-									
-								}
-
-						}					
-					}
-					
-				}			
-			}
-			return vSet;
-		}
-
-	}
-	
-	boolean containParaOrField(Variable v)
-	{
-
-			if(v instanceof ExternalPara)
-			{
-				String name = ((ExternalPara) v).getName();
-				if(name.contains("@parameter") || name.matches("<.*>"))
-					return true;
-				else
-					return false;
-			}
-			else if(v instanceof Expression)
-			{
-				for(List<Variable> operandList:((Expression) v).getOperands())
-				{
-					for(Variable operand: operandList)
-					if(containParaOrField(operand))
-						return true;
-				}
-				return false;
-			}
-			else if(v instanceof T)
-			{
-			
-				return containParaOrField(((T) v).getVariable());
-			}
-			else
-			return false;
-	}
 	
 	
-	private Set<Variable> replaceExternal(Variable v,NodeInterface n, String parentSig, 
-			Map<String,Translator> tMap,
-			Map<String,Set<String>> fieldMap)
-	{
-		
-		Set<Variable> returnSet = new LinkedHashSet<>();
-		if(v instanceof ExternalPara)
-		{
-			Translator t = tMap.get(parentSig);
-			//replace the parameter with the IR value at the call site
-			if(((ExternalPara) v).getName().contains("@parameter") && n != null)
-			{
-				String tmp = ((ExternalPara) v).getName().split(":")[0].replaceAll("@parameter", "");
-				int index = Integer.parseInt(tmp);
-				
-			//	System.out.println(index +" "+valueBox);
-			
-				List<ValueBox> valueBox = ((Unit)((Node)n).getActualNode()).getUseBoxes();
-
-				if(!(valueBox.get(0) instanceof ImmediateBox))
-					index = index+1;
-				
-			//	System.out.println(index+"->index-> "+valueBox);
-				
-				if(index >= valueBox.size())
-					returnSet.add(v);
-				else 
-				{
-					String para = valueBox.get(index).getValue().toString();
-
-					if(para.contains("\""))
-						returnSet.add( new ConstantString(para));
-					else if(valueBox.get(index).getValue().getType().toString().equals("int"))
-					{
-					
-						if(!para.contains("i")&&!para.contains("b"))
-						returnSet.add( new ConstantString(""+(char)Integer.parseInt(para)));
-					}
-	
-					else
-					{
-						
-						Set<Variable> newIR = new LinkedHashSet<>();
-	
-						//System.out.println(valueBox.toString()+para+t.getRD().getAllDef());
-						for(String line:t.getRD().getLineNumForUse(n, para))
-						{
-							if(t.getTranslatedIR(line)!=null)
-								newIR.addAll(t.getTranslatedIR(line));
-						}
-						
-						
-						
-						returnSet.addAll(newIR);
-					}
-					
-				}
-			}
-			//replace the field with all the field assignments, this is flow & context insensitive
-			else if(((ExternalPara) v).getName().matches("<.*>"))
-			{
-				String fieldName = ((ExternalPara) v).getName();
-				if(fieldMap.get(fieldName) == null)
-					returnSet.add(v);
-				else
-				{
-					//System.out.println(fieldName);
-					//System.out.println(fieldMap.get(fieldName).size());
-					for(String fieldDefLocation : fieldMap.get(fieldName))
-					{
-						//System.out.println("!" + fieldDefLocation);
-						String methodSig = fieldDefLocation.split("@")[0];
-						String line = fieldDefLocation.split("@")[1];
-						if(tMap.get(methodSig) != null && tMap.get(methodSig).getTranslatedIR(line) != null)
-						{
-							List<Variable> irs = tMap.get(methodSig).getTranslatedIR(line);
-							returnSet.addAll(irs);
-						}
-						//System.out.println(returnSet.size() + returnSet.toString());
-					}
-				}
-			}
-			else
-				returnSet.add(v);
-			
-		}
-
-		else if(v instanceof Expression)
-		{
-			List<List<Variable>> newOperandList = new ArrayList<>();
-			for(List<Variable> operandList:((Expression) v).getOperands())
-			{
-				List<Variable> tempOperand = new ArrayList<>();
-				for(Variable operand:operandList)
-				{
-					tempOperand.addAll( replaceExternal(operand,n,parentSig,tMap,fieldMap));
-				}
-				newOperandList.add(tempOperand);
-			}
- 			((Expression) v).setOperands(newOperandList);
- 			returnSet.add(v);
-		}
-		else if(v instanceof T)
-		{
-			((T) v).setVariable(replaceExternal(((T) v).getVariable(),n,parentSig,tMap,fieldMap).iterator().next());
-			returnSet.add(v);
-		}
-		else
-			returnSet.add(v);
-		
-		return returnSet;
-	}
 	public Set<String> identifyRelevant(Set<String> targetScanList)
 	{
 		Set<String> targetMethod = new HashSet<>();
@@ -1359,4 +1002,291 @@ public class JavaAndroid {
 			return 0;
 	}
 	
+	
+
+	
+	private void InterpretCheckerJava(String arg0,String arg1,String arg2,String summaryFolder,String wfolder)
+	{
+		//"/home/yingjun/Documents/StringAnalysis/MethodSummary/"
+		//"Usage: rt.jar app_folder classlist.txt"
+
+		JavaApp App;
+		if(arg1.contains("bookstore"))
+		{
+
+			App=new JavaApp(arg0,arg1,arg2,"void _jspService(javax.servlet.http.HttpServletRequest,javax.servlet.http.HttpServletResponse)");
+		}
+		else{
+			App=new JavaApp(arg0,arg1,arg2,"void main(java.lang.String[])");
+		}
+		Map<String,Map<String,Set<Variable>>> targetMap = new HashMap<>();
+    	Map<String,Set<NodeInterface>> paraMap = new HashMap<>();
+    	Map<String,Set<String>> fieldMap = new HashMap<>();
+		Map<String,Translator> tMap = new HashMap<>();
+		long totalTranslate = 0,totalInterpret = 0;
+		
+		
+		long t1,t2;
+		
+
+		 File sFolder = new File(summaryFolder);
+		 File wFolder = new File(wfolder);
+		 // if the directory does not exist, create it
+		 if (!sFolder.exists()) {
+		     System.out.println("creating directory: " + sFolder);
+		     boolean result = false;
+		     try{
+		    	 sFolder.mkdir();
+		         result = true;
+		     } 
+		     catch(SecurityException se){
+		    	 System.out.println("Create a folder named : \"MethodSummary\" under the app folder");
+		     }        
+		     if(result) {    
+		         System.out.println("DIR created");  
+		     }
+		 }
+		 if (!wFolder.exists()) {
+		     System.out.println("creating directory: " + wFolder);
+		     boolean result = false;
+		     try{
+		    	 wFolder.mkdir();
+		         result = true;
+		     } 
+		     catch(SecurityException se){
+		    	 System.out.println("Create a folder named : \"Output\" under the app folder");
+		     }        
+		     if(result) {    
+		         System.out.println("DIR created");  
+		     }
+		 }
+
+
+    	for(CFGInterface cfg:callGraph.getRTOInterface())
+    	{
+    		//System.out.println(cfg.getSignature());
+    		String signature=cfg.getSignature();
+    		
+    	//	if(!signature.contains("SubstringOfNull"))
+    	//		continue;
+    		
+    		
+    		if(signature.equals("<LoggerLib.Logger: void <clinit>()>")||signature.equals("<LoggerLib.Logger: void reportString(java.lang.String,java.lang.String)>"))
+    		continue;
+    		
+    		//field																	def missing						
+
+    		
+
+    		
+    		
+      		//for(int i=1;i<=loopCount;i++)
+    		//{  		
+    		
+    		
+
+    		t1 = 	System.currentTimeMillis();
+    		LayerRegion lll = new LayerRegion(null);
+    		ReachingDefinition rd = new ReachingDefinition(cfg.getAllNodes(), cfg.getAllEdges(),lll.identifyBackEdges(cfg.getAllNodes(),cfg.getAllEdges(), cfg.getEntryNode()));	   		
+    		rds.put(signature, rd);
+    		
+    		LayerRegion lr = new LayerRegion(cfg);
+    	
+    		//System.out.println(signature);
+    		Translator t = new Translator(rd, lr,signature,summaryFolder,targetSignature);
+    	
+    		tMap.put(signature, t);
+    		paraMap.putAll(t.getParaMap());
+    		
+    		for(Entry<String,Set<String>> en: t.getFieldMap().entrySet())
+    		{
+    			if(fieldMap.containsKey(en.getKey()))
+    				fieldMap.get(en.getKey()).addAll(en.getValue());
+    			else
+    				fieldMap.put(en.getKey(), en.getValue());
+    		}
+    		//fieldMap.putAll(t.getFieldMap());
+    		 		
+    		if(t.getTargetLines().isEmpty())
+    			continue;
+    		
+    		//Set<String> value = new HashSet<>();
+    	
+    		
+    		//label set<IR>
+    		Map<String,Set<Variable>> labelIR = new HashMap<>();
+    		
+    		for(String labelwithnum:t.getTargetLines().keySet())
+    		{
+    			Set<Variable> targetIR = new LinkedHashSet<>();
+    			for(String line: t.getTargetLines().get(labelwithnum))
+    				if(t.getTranslatedIR(line)!=null)
+    					targetIR.addAll(t.getTranslatedIR(line));
+    			
+    	
+    			//if(targetIR.isEmpty())
+    			//	targetIR.add(new ExternalPara("Unknown"));
+    			labelIR.put(labelwithnum, targetIR);
+    		}
+    		
+
+    	
+    		
+    		if(!targetMap.containsKey(signature))
+    			targetMap.put(signature, labelIR);
+    	 		
+    		t2 = 	System.currentTimeMillis();
+    		totalTranslate+=t2-t1;
+    	
+    	}
+		
+    	//Key : signature of method that contains the targets
+    	//Value: a map mapping the line id of the target string to its IR
+    	for(Entry<String,Map<String,Set<Variable>>> enout: targetMap.entrySet())
+    	{
+    		String signature = enout.getKey();
+    		
+    		//System.out.println("\n"+signature);
+    		
+
+    		
+    		for(Entry<String,Set<Variable>> en:enout.getValue().entrySet())
+    		{
+    		
+    			
+    				
+	    		t1 = System.currentTimeMillis();
+	    		
+	    		
+	    		Set<Variable> newIR = replaceExternal(en.getValue(),signature,paraMap,tMap,fieldMap);
+	    		t2 = System.currentTimeMillis();
+	    		totalTranslate += t2-t1;
+	    		
+	    		
+	    		int loopCount = 3;	    			    		
+	    		String tempSig = signature.replaceAll("TestCases.", "");
+	    		int dot = tempSig.indexOf(".");
+	    		String tt = tempSig.substring(dot+1);
+	    		
+	    		if(tt.contains("Mix")||tt.contains("NestedLoop"))
+	    			loopCount = 2;
+	    		else
+	    			loopCount = 3;
+	    		
+	    		Set<String> value = new LinkedHashSet<>();
+	    		
+	    		t1 = System.currentTimeMillis();
+    			Interpreter intp = new Interpreter(newIR,fieldMap,loopCount);
+    			
+    			value.addAll(intp.getValueForIR());
+
+	    		
+	    		//add const label
+	    		
+	    		if(tMap.get(signature).getLabelConstant().get(en.getKey())!=null)
+	    		{
+	    		//	value.add(tMap.get(signature).getLabelConstant().get(en.getKey()).replaceAll("\"", ""));
+	    		}
+	    		
+    			t2 = System.currentTimeMillis();
+    			
+    			totalInterpret += t2-t1;
+	    		
+	    		//System.out.println("Label: "+en.getKey());
+	    		//System.out.println("Output: "+value);
+	    		
+	    		if(!emptyOrContainUnknown(value))
+	    		{
+	    			//System.out.println(en.getKey()+":"+value+";"+value.isEmpty()+value.iterator().next().equals(""));
+	    			
+		    		try
+		    		{
+		    			BufferedWriter bw = new BufferedWriter(new FileWriter(wfolder+en.getKey().replaceAll("\"", "")+".txt",true));
+		    			//BufferedWriter bw = new BufferedWriter(new FileWriter(wfolder+"output.txt",true));
+		    			//bw.write(en.getKey().replaceAll("\"", ""));
+		    			//bw.newLine();
+		    			for(String s:value)
+		    			{
+		    				
+		    				bw.write(s);
+		    				bw.newLine();
+		    			}
+		    			
+		    			bw.flush();
+		    			bw.close();
+		    		}
+		    		catch(IOException e)
+		    		{
+		    			e.printStackTrace();
+		    		}
+	    		}
+
+	    
+	    	}
+    		
+    	    
+
+    	}
+    	
+    	System.out.println("Total Trans: "+ totalTranslate);
+    	System.out.println("Total Interp: "+ totalInterpret);
+        removeSummaryFolder(sFolder);
+	}
+	
+	private Set<Variable> replaceExternal(Set<Variable> IRs,String signature,
+			Map<String,Set<NodeInterface>> paraMap,Map<String,Translator> tMap, Map<String, Set<String>> fieldMap)
+	{
+
+		boolean existPara = false;
+		for(Variable v:IRs)
+		{
+			if(containParaOrField(v))
+				existPara = true;
+		}
+		if(!existPara)
+		{	
+			return IRs;
+		}
+		else
+		{
+			Set<Variable> vSet = new LinkedHashSet<>();
+			for(Variable v: IRs)
+			{
+				if(paraMap.get(signature)==null)
+					vSet.add(v);
+				else
+				{
+					
+					if(callGraph.getParents(signature).isEmpty())
+						vSet.add(copyVar(v));
+					else
+					{
+						for(String parentSig:callGraph.getParents(signature))
+						{
+							Set<Variable> newIR = new LinkedHashSet<>();
+							
+							if(tMap.get(parentSig)!=null&&tMap.get(parentSig).getParaMap()!=null)
+								if(tMap.get(parentSig).getParaMap().get(signature)!=null)
+								{
+									for(NodeInterface n:tMap.get(parentSig).getParaMap().get(signature))
+										newIR.addAll(replaceExternal(copyVar(v),n, parentSig, tMap, fieldMap));
+									
+									Set<Variable> copy = new LinkedHashSet<>();
+									for(Variable vv:newIR)
+										copy.add(copyVar(vv));
+									
+								//	System.out.println(signature);
+									vSet.addAll(replaceExternal(copy,parentSig, paraMap, tMap, fieldMap));
+									
+								}
+
+						}					
+					}
+					
+				}			
+			}
+			return vSet;
+		}
+
+	}
 }

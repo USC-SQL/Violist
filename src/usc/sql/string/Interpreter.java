@@ -70,11 +70,10 @@ public class Interpreter {
 		
 		for(Variable ir: target)
 		{
-			//System.out.println(ir);
 			Set<String> s = new LinkedHashSet<>();
 			s.addAll(interpret(ir,maxLoop));
 			if(s.isEmpty())
-				s.add("Unknown@INTERPRET@!!!");
+				s.add("Unknown@INTERPRET@"+ ir +"!!!");
 			s.remove(InterRe.ARRAY_MARKER);
 			s.remove(InterRe.CONTENT_VALUE_MARKER);
 			ir.setInterpretedValue(s);
