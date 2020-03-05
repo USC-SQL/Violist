@@ -45,6 +45,7 @@ public class JavaAndroid {
 	private int maxloop;
 	private Map<String, Set<Variable>> output = new HashMap<>();
 	private Map<String, Set<String>> analysisResult = new HashMap<>();
+	private Map<String, Map<String, Integer>> irOpStatistics = new HashMap<>();
  	private Map<String,ReachingDefinition> rds = new HashMap();
 	private Map<String,CFGInterface> cfgs = new HashMap();
 	private StringCallGraph callGraph;
@@ -157,7 +158,7 @@ public class JavaAndroid {
     				callPathIdToCallPath.get(callPathId), tMap, fieldMap);
     		
 
-    		
+			irOpStatistics.put(callPathId, getOperations(IRs));
     		Interpreter intp = new Interpreter(IRs,fieldMap,maxloop);
 			//InterpreterPath intp = new InterpreterPath(newIR,fieldMap,maxloop);
 
@@ -172,6 +173,7 @@ public class JavaAndroid {
 				}
 			}
 			analysisResult.put(callPathId, possibleValues);
+
     	}
     	
 		removeSummaryFolder(sFolder);
@@ -527,6 +529,10 @@ public class JavaAndroid {
 	public Map<String, Set<Variable>> getIRs()
 	{
 		return output;
+	}
+	public Map<String, Map<String, Integer>> getIROpStatistics()
+	{
+		return irOpStatistics;
 	}
 	public Map<String, Set<String>> getInterpretedValues()
 	{
