@@ -7,6 +7,16 @@ Ding Li, Yingjun Lyu, Mian Wan, and William G. J. Halfond
 In Proceedings of the 2015 10th Joint Meeting on Foundations of Software Engineering (ESEC/FSE 2015). ACM, New York, NY, USA, 661-672.
 http://www-bcf.usc.edu/~halfond/papers/li15fse.pdf
 ```
+# SAND
+A version of the string analysis framework customized to analyze database queries.
+
+```	
+SAND: a static analysis approach for detecting SQL antipatterns.
+Yingjun Lyu, Sasha Volokh, William G.J. Halfond and Omer Tripp.
+In Proceedings of the International Symposium on Software Testing and Analysis (ISSTA). July 2021.
+Distinguished Paper Award.
+https://dl.acm.org/doi/10.1145/3460319.3464818
+```
 
 # Current Version
 This version contains a precise interpreter. The unknown values are marked with placeholders (@Uknown@METHOD,etc). They can be treated as any string, i.e., .*
