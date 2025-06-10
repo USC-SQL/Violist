@@ -17,9 +17,13 @@ import java.util.Queue;
 import java.util.Set;
 
 import SootEvironment.JavaApp;
+import soot.Unit;
 import soot.ValueBox;
+import soot.tagkit.BytecodeOffsetTag;
+import soot.tagkit.Tag;
 import usc.sql.ir.*;
 import edu.usc.sql.graphs.EdgeInterface;
+import edu.usc.sql.graphs.Node;
 import edu.usc.sql.graphs.NodeInterface;
 
 public class Translator {
@@ -40,7 +44,7 @@ public class Translator {
 	private String folderName;
 	private Map<String,List<Integer>> targetSignature;
 	private int targetParaOffset;
-	private Map<NodeInterface,List<String>> targetVarNodeAndName = new HashMap<>();
+	private Map<NodeInterface,List<List<String>>> targetVarNodeAndName = new HashMap<>();
 	private Map<String,Set<NodeInterface>> paraMap = new HashMap<>();
 	private Map<String,Set<String>> fieldMap = new HashMap<>();
 	private Map<String,String> labelConst = new HashMap<>();
@@ -257,7 +261,6 @@ public class Translator {
 
 		for(Entry<String,ArrayList<Variable>> en:newUseMap.entrySet())
 		{
-			
 			newUseMapLoopPrevious.put(en.getKey(), copyVar(en.getValue()));	
 			for(Variable tempV:newUseMapLoopPrevious.get(en.getKey()))
 			{
@@ -435,7 +438,13 @@ public class Translator {
 						for(String line:rd.getLineNumForUse(returnNodeAndName.getKey(), ((InternalVar)returnNodeAndName.getValue()).getName()))
 						{
 							if(newUseMapLoop.get(line)==null)
-								returnVar.add(new ExternalPara("Unknown@USENULL"));
+							{
+								Unit actualNode = (Unit) ((Node)returnNodeAndName.getKey()).getActualNode();
+								
+								int sourceLineNumber = actualNode.getJavaSourceStartLineNumber();
+								int bytecodeOffset = InterRe.getBytecodeOffset(actualNode);
+								returnVar.add(new ExternalPara("Unknown@USENULL@"+((InternalVar)returnNodeAndName.getValue()).getName(), methodName, sourceLineNumber, bytecodeOffset));
+							}
 							else
 								returnVar.addAll(newUseMapLoop.get(line));
 						}
@@ -652,8 +661,6 @@ public class Translator {
 						String line = ((InternalVar) v).getLine();
 						if(visited.contains(line))
 						{	//if(n.getOffset().toString().equals(line))
-							
-							
 							if(newUseMap.get(line)!=null)
 							{
 								for(Variable tempVar:newUseMap.get(line))
@@ -661,6 +668,7 @@ public class Translator {
 									//!!!! There may be duplicate terms 
 									varList.add(tempVar);
 									
+									/*
 									if(tempVar instanceof ExternalPara)
 									{	
 										ExternalPara field = (ExternalPara) tempVar;
@@ -677,10 +685,16 @@ public class Translator {
 										}
 										
 									}
+									*/
 								}
 							}
 							else
-								varList.add(new ExternalPara("Unknown@USENULL"));
+							{
+								Unit actualNode = (Unit) ((Node)n).getActualNode();
+								int sourceLineNumber = actualNode.getJavaSourceStartLineNumber();
+								int bytecodeOffset = InterRe.getBytecodeOffset(actualNode);
+								varList.add(new ExternalPara("Unknown@USENULL@" + ((InternalVar)v).getName(), methodName, sourceLineNumber, bytecodeOffset));
+							}
 							
 							newlyDefine = true;
 						}
@@ -1142,7 +1156,7 @@ public class Translator {
 				if(v.getSize()<2000)
 					vl.add(copyVar(v));
 				else
-					vl.add(new ExternalPara("Unknown@IRSIZE"));
+					vl.add(new ExternalPara("Unknown@IRSIZE", methodName, -1, -1));
 					
 			}
 		return vl;
@@ -1319,28 +1333,33 @@ public class Translator {
 	public Map<String,List<String>> getTargetLines()
 	{	
 		Map<String,List<String>> labelLines = new HashMap<>();
-		for(Entry<NodeInterface,List<String>> en:targetVarNodeAndName.entrySet())
+		for(Entry<NodeInterface,List<List<String>>> en:targetVarNodeAndName.entrySet())
 		{		
-			
-			List<String> lines = new ArrayList<>();
 			NodeInterface n = en.getKey();
-			String varname = en.getValue().get(0); 
-			String label = en.getValue().get(1);
-			if(varname.contains("\""))
+			for(List<String> nameAndLabel : en.getValue())
 			{
-				labelConst.put(label, varname);
-				lines.add("-1");
-				labelLines.put(label, lines);
+				List<String> lines = new ArrayList<>();
 				
-			}
+				String varname = nameAndLabel.get(0); 
+				String label = nameAndLabel.get(1);
+				if(varname.contains("\""))
+				{
+					labelConst.put(label, varname);
+					lines.add("-1");
+					labelLines.put(label, lines);
+					
+				}
+				
+				else
+				{
+					for(String line: rd.getLineNumForUse(n, varname))
+					{
+						lines.add(line);
 			
-			else				
-			for(String line: rd.getLineNumForUse(n, varname))
-			{
-				lines.add(line);
-	
+					}
+				}
+				labelLines.put(label, lines);
 			}
-			labelLines.put(label, lines);
 		}
 		
 		return labelLines;

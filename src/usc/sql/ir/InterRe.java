@@ -12,11 +12,15 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import javax.xml.transform.Source;
+
 import SootEvironment.JavaApp;
+import soot.Type;
 import soot.Unit;
 import soot.Value;
 import soot.ValueBox;
 import soot.jimple.FieldRef;
+import soot.jimple.IfStmt;
 import soot.jimple.InvokeStmt;
 import soot.jimple.Stmt;
 import soot.jimple.internal.*;
@@ -36,7 +40,7 @@ public class InterRe {
 	private Map<String,Boolean> regionDef;
 	private List<String> lineDef;
 	private Map<NodeInterface,Variable> returnVarNodeAndName = new HashMap<>();
-	private Map<NodeInterface,List<String>> targetVarNodeAndName;
+	private Map<NodeInterface,List<List<String>>> targetVarNodeAndName;
 	private Map<String,ArrayList<Variable>> lineUseMapFromOtherMethod = new HashMap<>();
 	private  Map<String, Set<NodeInterface>> paraMap;
 	private Map<String,Set<String>> field;
@@ -47,12 +51,14 @@ public class InterRe {
 	//target signature
 	private Map<String,List<Integer>> targetSignature;
 	//the Nth string parameter
-
+	public final static String ARRAY_MARKER = "$$$newarray";
+	public final static String CONTENT_VALUE_MARKER = "$$$contentvalue";
+	public final static String CONTENT_VALUE_OPERATOR = "@@@";
 	
 	private int targetCount;
 	private String methodName;
 	public InterRe(List<NodeInterface> nodes,Map<String,Boolean> regionDef,List<String> lineDef,String folderName,
-			Map<NodeInterface,List<String>> targetVarNodeAndName, Map<String, Set<NodeInterface>> paraMap,Map<String,Set<String>> field,
+			Map<NodeInterface,List<List<String>>> targetVarNodeAndName, Map<String, Set<NodeInterface>> paraMap,Map<String,Set<String>> field,
 			int targetCount,String methodName,JavaApp App, Map<String,List<Integer>> targetSignature)
 	{
 		this.regionDef = regionDef;
@@ -95,13 +101,12 @@ public class InterRe {
 		stringvirtual.add("<java.lang.StringBuffer: java.lang.StringBuffer replace(int,int,java.lang.String)>");
 		//non java.lang method but return string		
 		stringvirtual.add("<java.net.URLEncoder: java.lang.String encode(java.lang.String,java.lang.String)>");
-		
+		stringvirtual.add("<android.content.ContentValues: void put(java.lang.String");
 		
 		for(NodeInterface n: nodes)
 		{
 			interpret(n);
 		}		
-		
 	}
 	
 
@@ -117,53 +122,69 @@ public class InterRe {
 	{
 		return returnVarNodeAndName;
 	}
-	public Map<NodeInterface,List<String>> getTargetVar()
-	{
-		return targetVarNodeAndName;
-	}
 	private void interpret(NodeInterface n)
 	{
 		Stmt actualNode = (Stmt) ((Node)n).getActualNode();	
 	
+		int sourceLineNumber = -1;
+		int bytecodeOffset = -1;
 		
 		if(actualNode!=null)
 		{
-
+			//if(methodName.contains("<qi: void <clinit>()>"))
+			//  System.out.println(methodName + ":"  +n.getOffset().toString()+":"+actualNode);
+			sourceLineNumber = actualNode.getJavaSourceStartLineNumber();
+			bytecodeOffset = getBytecodeOffset(actualNode);
 			if(targetSignature!=null&&actualNode.containsInvokeExpr())
 			{
 				String signature = actualNode.getInvokeExpr().getMethod().getSignature();
 				if(targetSignature.keySet().contains(signature))
 				{	
 				
-						int paraNum=0;
-						
+						int paraNum = 0;
+			
 						for(ValueBox vb:actualNode.getUseBoxes())
 						{
-							if(vb.getValue().getType().toString().equals("java.lang.String")&&!vb.getValue().toString().contains("<"))
+							if(vb instanceof ImmediateBox)
 							{
+							
+								String type = vb.getValue().getType().toString();
+								if(type.equals("java.lang.String")
+										|| type.equals("java.lang.String[]")
+										|| type.equals("null_type")
+										|| type.equals("android.content.ContentValues"))
+								{
+									if(targetSignature.get(signature).contains(paraNum))
+									{
+										List<String> nameAndLabel = new ArrayList<>();
+										//name
+										nameAndLabel.add(vb.getValue().toString());
+										
+										//label: the target signature is found in method name at line source line + bytecode offset
+										nameAndLabel.add(methodName + "@" + sourceLineNumber + "@"
+													+ bytecodeOffset + "@" + signature +"@" + paraNum);
+											// System.out.println(targetCount+":"+vb.getValue().toString());
+										if(targetVarNodeAndName.containsKey(n))
+											targetVarNodeAndName.get(n).add(nameAndLabel);
+										else
+										{
+											List<List<String>> nameAndLabelList = new ArrayList<>();
+											nameAndLabelList.add(nameAndLabel);
+											targetVarNodeAndName.put(n, nameAndLabelList);
+										}
+										
+										
+									}	
+								}
+								else
+								{
+									if(targetSignature.get(signature).contains(paraNum))
+									{
+										System.err.println("We currently do not handle type " + vb.getValue().getType());
+									}
+								}
 								
 								paraNum++;
-								if(targetSignature.get(signature).contains(paraNum))
-								{
-									List<String> nameAndLabel = new ArrayList<>();
-									//name
-									nameAndLabel.add(vb.getValue().toString());
-									int bytecodeOffset = -1;
-									for (Tag t : actualNode.getTags()) {
-										if (t instanceof BytecodeOffsetTag)
-											bytecodeOffset = ((BytecodeOffsetTag) t).getBytecodeOffset();
-									}
-		
-									
-									//label: the target signature is found in method name at line source line + bytecode offset
-									nameAndLabel.add(methodName + "@" + actualNode.getJavaSourceStartLineNumber() + "@"
-												+ bytecodeOffset + "@" + paraNum+"@"+actualNode.toString());
-										// System.out.println(targetCount+":"+vb.getValue().toString());
-									targetVarNodeAndName.put(n, nameAndLabel);
-									
-								}	
-								
-								
 							}
 						}
 					
@@ -180,50 +201,55 @@ public class InterRe {
 		
 		
 		if(actualNode!=null&&lineDef.contains(n.getOffset().toString()))
-		{
-			
-			
-			
-			
+		{			
 			List<ValueBox> sootDef = actualNode.getDefBoxes();
 			List<ValueBox> sootUse = actualNode.getUseBoxes();
-			
-			
-			
+		
 			//case : field
-			if(!sootDef.isEmpty())
-			if(sootDef.get(0).getValue() instanceof FieldRef)
+			if(!sootDef.isEmpty() && sootDef.get(0).getValue() instanceof FieldRef)
 			{
 				FieldRef v=(FieldRef) sootDef.get(0).getValue();
-				String value;
-				if(sootUse.size()==1)								
-					value = sootUse.get(0).getValue().toString();				
-				else
-					value = sootUse.get(1).getValue().toString();
-				
-				if(value.contains("\""))
+				String fieldSignature = v.getField().getSignature();
+				String fieldDefLocation = methodName + "@" + n.getOffset().toString();
+				//only add field assignment in init 
+				if(methodName.contains("void <clinit>()")||methodName.contains("void <init>(")
+						||methodName.contains("void onCreate(android.os.Bundle)"))
 				{
-					//value = value.replaceFirst("\"", "");
-					//value = value.substring(0,value.lastIndexOf("\""));
-					value = value.replaceAll("\"", "");
-					String signature = v.getField().getSignature();
-					if(field.keySet().contains(signature))
-						field.get(signature).add(value);
+
+					if(field.keySet().contains(fieldSignature))
+						field.get(fieldSignature).add(fieldDefLocation);
 					else
 					{
 						Set<String> s = new HashSet<>();
-						s.add(value);
-						field.put(signature, s);
+						s.add(fieldDefLocation);
+						field.put(fieldSignature, s);
 					}
 				}
-				
+				//handle static string array field assignment 
+				//e.g. <sql.sand.abstraction.testcase.APIRead: java.lang.String[] a> = $r0
+				if(v.getType().toString().equals("java.lang.String[]") && sootUse.size() == 1)
+				{
+					String use = sootUse.get(0).getValue().toString();
+					//the constant string has been inlined by the compiler or soot, no need to handle
+					if(regionDef.get(use)!=null)
+					{
+						if(regionDef.get(use))
+						{
+							lineUseMap.put(n.getOffset().toString(), new InternalVar(use));
+						}
+						else
+						{
+							lineUseMap.put(n.getOffset().toString(), new ExternalPara(use, methodName, sourceLineNumber, bytecodeOffset));
+						}
+					}
+				}
 			}
 			
 			
 			
 			//case : @parameter
 			if(actualNode.toString().contains("@parameter"))
-				lineUseMap.put(n.getOffset().toString(),new ExternalPara(sootUse.get(0).getValue().toString()+":"+methodName));
+				lineUseMap.put(n.getOffset().toString(),new ExternalPara(sootUse.get(0).getValue().toString()+":"+methodName, methodName, sourceLineNumber, bytecodeOffset));
 			//case : new StringBuilder
 			//!!
 			else if(actualNode.toString().contains("= new java.lang.StringBuilder")||actualNode.toString().contains("= new java.lang.StringBuffer"))
@@ -244,9 +270,11 @@ public class InterRe {
 					if(regionDef.get(use)!=null)
 					{
 						if(regionDef.get(use))
+						{
 							lineUseMap.put(n.getOffset().toString(), new InternalVar(use));
+						}
 						else
-							lineUseMap.put(n.getOffset().toString(), new ExternalPara(use));
+							lineUseMap.put(n.getOffset().toString(), new ExternalPara(use, methodName, sourceLineNumber, bytecodeOffset));
 					}
 				}
 			}
@@ -268,7 +296,7 @@ public class InterRe {
 					if(regionDef.get(use))
 						lineUseMap.put(n.getOffset().toString(), new InternalVar(use));
 					else
-						lineUseMap.put(n.getOffset().toString(), new ExternalPara(use));
+						lineUseMap.put(n.getOffset().toString(), new ExternalPara(use, methodName, sourceLineNumber, bytecodeOffset));
 				}
 			}
 			//case : constant String  || set field
@@ -289,12 +317,12 @@ public class InterRe {
 						if(regionDef.get(use))
 							lineUseMap.put(n.getOffset().toString(), new InternalVar(use));
 						else
-							lineUseMap.put(n.getOffset().toString(), new ExternalPara(use));
+							lineUseMap.put(n.getOffset().toString(), new ExternalPara(use, methodName, sourceLineNumber, bytecodeOffset));
 						
 					}
 			}
-			
 			//string manipulation
+			//handle content values, treat r1.put(r2, r3) as r1 = r2 op r3
 			else if(contain(actualNode.toString()))
 			{				
 				//System.out.println(actualNode.getDefBoxes()+" "+actualNode.getUseBoxes());
@@ -306,7 +334,8 @@ public class InterRe {
 				boolean ignore = false;
 				for(ValueBox vb:sootUse)
 				{
-					
+					//if(!(vb instanceof ImmediateBox) || !(vb instanceof JimpleLocalBox))
+					//	continue;
 					String use = vb.getValue().toString();
 					if(!use.contains("virtualinvoke")&&!use.contains("staticinvoke"))
 					{
@@ -320,22 +349,21 @@ public class InterRe {
 						{
 							
 							if(regionDef.get(use)==null)
-								v= new ExternalPara("Unknown@NODEF");
+								v= new ExternalPara("Unknown@NODEF", methodName, sourceLineNumber, bytecodeOffset);
 							else
 							{
 							if(regionDef.get(use))
 								v = new InternalVar(use);
 							else
-								v = new ExternalPara(use);
+								v = new ExternalPara(use, methodName, sourceLineNumber, bytecodeOffset);
 							}
 						}
 						else if((use.contains("b")||use.contains("i"))||use.contains("c")||use.contains("z")||use.contains("d")||use.contains("l")&&!use.contains("\""))
 						{
-							
 							if(regionDef.get(use))
 								v = new InternalVar(use);
 							else
-								v = new ExternalPara(use);
+								v = new ExternalPara(use, methodName, sourceLineNumber, bytecodeOffset);
 						}
 						
 						else
@@ -411,11 +439,15 @@ public class InterRe {
 							op = new Operation("encode");
 						}
 						
+						else if(use.contains("<android.content.ContentValues: void put(java.lang.String,"))
+						{
+							op = new Operation("put");
+						}
 						else 
 						{
 						
 							ignore = true;
-							lineUseMap.put(n.getOffset().toString(), new ExternalPara("Unknown@MISSINVOKE"));
+							lineUseMap.put(n.getOffset().toString(), new ExternalPara("Unknown@MISSINVOKE", methodName, sourceLineNumber, bytecodeOffset));
 							//System.out.println("virtual invoke case missing: "+ use);
 						}
 						
@@ -423,7 +455,8 @@ public class InterRe {
 				}
 				if(!ignore)
 				{
-					operands.addAll(jimp);
+					if(!actualNode.toString().contains(".<android.content.ContentValues: void put(java.lang.String,"))
+						operands.addAll(jimp);
 					operands.addAll(immed);
 					List<List<Variable>> operandList = new ArrayList<>();
 					for(Variable opd: operands)
@@ -442,7 +475,14 @@ public class InterRe {
 			}
 			else if(sootUse.toString().contains("newarray"))
 			{
-				lineUseMap.put(n.getOffset().toString(), new ConstantString("null"));
+				lineUseMap.put(n.getOffset().toString(), new ConstantString(ARRAY_MARKER));
+				//Haven't handled ,if a array element is never assign, it will fail
+				
+				//lineUseMap.put(n.getOffset().toString(), new ConstantString("newarray"));
+			}
+			else if(sootUse.toString().contains("new android.content.ContentValues"))
+			{
+				lineUseMap.put(n.getOffset().toString(), new ConstantString(CONTENT_VALUE_MARKER));
 				//Haven't handled ,if a array element is never assign, it will fail
 				
 				//lineUseMap.put(n.getOffset().toString(), new ConstantString("newarray"));
@@ -452,17 +492,7 @@ public class InterRe {
 			{
 				//System.out.println("yaya"+sootUse);
 				
-				//case: r = field
-				if(sootUse.get(0).getValue() instanceof FieldRef)
-				{
-					Value v = sootUse.get(0).getValue();
-					String signature = ((FieldRef)v).getField().getSignature();
-					//System.out.println("GOT"+signature);
-					
-					lineUseMap.put(n.getOffset().toString(), new ExternalPara(signature));
-					
 
-				}
 				if(sootUse.size()==1)
 				{
 					String use = sootUse.get(0).getValue().toString();
@@ -472,13 +502,15 @@ public class InterRe {
 					{
 					//System.out.println("Oh no: "+actualNode.toString());
 						if(regionDef.get(use)==null)
-							lineUseMap.put(n.getOffset().toString(), new ExternalPara("Unknown@NODEF"));
+						{
+							lineUseMap.put(n.getOffset().toString(), new ExternalPara("Unknown@NODEF", methodName, sourceLineNumber, bytecodeOffset));
+						}
 						else
 						{
 							if(regionDef.get(use))
 								lineUseMap.put(n.getOffset().toString(), new InternalVar(use));
 							else
-								lineUseMap.put(n.getOffset().toString(), new ExternalPara(use));
+								lineUseMap.put(n.getOffset().toString(), new ExternalPara(use, methodName, sourceLineNumber, bytecodeOffset));
 						}
 					}
 					//case: r = null
@@ -488,57 +520,18 @@ public class InterRe {
 						Value v=sootUse.get(0).getValue();
 						if(v instanceof FieldRef)
 						{
-							lineUseMap.put(n.getOffset().toString(), new ExternalPara(((FieldRef)v).getField().getSignature()));
+							lineUseMap.put(n.getOffset().toString(), new ExternalPara(((FieldRef)v).getField().getSignature(), methodName, sourceLineNumber, bytecodeOffset));
 						//	System.out.println("Field:"+ ((FieldRef)v).getField().getTags());
 						}
 						else if(v.toString().equals("null"))
 							lineUseMap.put(n.getOffset().toString(), new ConstantString("null"));
-						
 					}
 				}
 				
 				else
 				{
-					//case: r = r.something
-					if(actualNode.toString().matches("(.r|r)([0-9]*)(.*) = (.r|r)([0-9]*)(.*)"))
-					{
-						
-						for(ValueBox vb:sootUse)
-						{
-							if(!(vb instanceof JimpleLocalBox || vb instanceof ImmediateBox))
-							{
-								String use = vb.getValue().toString();
-								if(regionDef.get(use)==null)
-								{
-									if(use.contains("[")/*&&vb.getValue().getType().toString().equals("java.lang.String[]")*/)
-									{
-										
-										String tmp = use.substring(0,use.indexOf("["));
-										
-										if(regionDef.get(tmp)==null)
-											lineUseMap.put(n.getOffset().toString(), new ExternalPara("Unknown@NODEF"));
-										else
-										{
-										if(regionDef.get(tmp))
-											lineUseMap.put(n.getOffset().toString(), new InternalVar(use));
-										else
-											lineUseMap.put(n.getOffset().toString(), new ExternalPara(use));
-										}
-									}
-								}
-								else
-								{
-							
-									if(regionDef.get(use))
-										lineUseMap.put(n.getOffset().toString(), new InternalVar(use));
-									else
-										lineUseMap.put(n.getOffset().toString(), new ExternalPara(use));
-								}
-								
-							}
-						}
-					}
-					else if(actualNode.toString().matches("(.r|r)([0-9]*)(.*) = \"(.*)\""))
+					//case: r = "something"
+					if(actualNode.toString().matches("(.r|r)([0-9]*)(.*) = \"(.*)\""))
 					{
 						for(ValueBox vb:sootUse)
 						{
@@ -547,12 +540,59 @@ public class InterRe {
 								String use = vb.getValue().toString();
 								if(use.contains("\""))
 									lineUseMap.put(n.getOffset().toString(), new ConstantString(use));
-
-							
-							
 							}
 						}
 					}
+					//case: r = r.something
+					else if(actualNode.toString().matches("(.r|r)([0-9]*)(.*) = (.r|r)([0-9]*)(.*)"))
+					{
+						
+						//case: r = field
+						if(sootUse.get(0).getValue() instanceof FieldRef)
+						{
+							Value v = sootUse.get(0).getValue();
+							String signature = ((FieldRef)v).getField().getSignature();
+							//System.out.println("GOT"+signature);
+							lineUseMap.put(n.getOffset().toString(), new ExternalPara(signature, methodName, sourceLineNumber, bytecodeOffset));
+						}
+						else
+						{
+							for(ValueBox vb:sootUse)
+							{
+								if(!(vb instanceof JimpleLocalBox || vb instanceof ImmediateBox))
+								{
+									String use = vb.getValue().toString();
+									if(regionDef.get(use)==null)
+									{
+										if(use.contains("[")/*&&vb.getValue().getType().toString().equals("java.lang.String[]")*/)
+										{
+											
+											String tmp = use.substring(0,use.indexOf("["));
+											if(regionDef.get(tmp)==null)
+												lineUseMap.put(n.getOffset().toString(), new ExternalPara("Unknown@NODEF", methodName, sourceLineNumber, bytecodeOffset));
+											else
+											{
+											if(regionDef.get(tmp))
+												lineUseMap.put(n.getOffset().toString(), new InternalVar(use));
+											else
+												lineUseMap.put(n.getOffset().toString(), new ExternalPara(use, methodName, sourceLineNumber, bytecodeOffset));
+											}
+										}
+									}
+									else
+									{
+								
+										if(regionDef.get(use))
+											lineUseMap.put(n.getOffset().toString(), new InternalVar(use));
+										else
+											lineUseMap.put(n.getOffset().toString(), new ExternalPara(use, methodName, sourceLineNumber, bytecodeOffset));
+									}
+									
+								}
+							}
+						}
+					}
+
 					else if(actualNode.toString().matches("(.r|r)([0-9]*)(.*) = (.)*(.r|r)([0-9]*)")&&actualNode.toString().contains("(java.lang.String[])"))
 					{
 						for(ValueBox vb:sootUse)
@@ -563,7 +603,7 @@ public class InterRe {
 								if(regionDef.get(use))
 									lineUseMap.put(n.getOffset().toString(), new InternalVar(use));
 								else
-									lineUseMap.put(n.getOffset().toString(), new ExternalPara(use));
+									lineUseMap.put(n.getOffset().toString(), new ExternalPara(use, methodName, sourceLineNumber, bytecodeOffset));
 							
 							
 							}
@@ -593,7 +633,7 @@ public class InterRe {
 							if(regionDef.get(use1))
 								op1.add( new InternalVar(use1));
 							else
-								op1.add( new ExternalPara(use1));
+								op1.add( new ExternalPara(use1, methodName, sourceLineNumber, bytecodeOffset));
 							
 							break;
 						}
@@ -609,7 +649,7 @@ public class InterRe {
 						if(regionDef.get(use))
 							lineUseMap.put(n.getOffset().toString(), new InternalVar(use));
 						else
-							lineUseMap.put(n.getOffset().toString(), new ExternalPara(use));
+							lineUseMap.put(n.getOffset().toString(), new ExternalPara(use, methodName, sourceLineNumber, bytecodeOffset));
 					}
 					//Only for JSA Test
 					else if(use.matches("(.r|r)([0-9]*)(.*)"))
@@ -624,17 +664,17 @@ public class InterRe {
 								{
 									if(use1.contains("[")/*&&vb.getValue().getType().toString().equals("java.lang.String[]")*/)
 									{
-										
+									
 										String tmp = use1.substring(0,use1.indexOf("["));
-										
+
 										if(regionDef.get(tmp)==null)
-											lineUseMap.put(n.getOffset().toString(), new ExternalPara("Unknown@NODEF"));
+											lineUseMap.put(n.getOffset().toString(), new ExternalPara("Unknown@NODEF", methodName, sourceLineNumber, bytecodeOffset));
 										else
 										{
 										if(regionDef.get(tmp))
 											lineUseMap.put(n.getOffset().toString(), new InternalVar(use1));
 										else
-											lineUseMap.put(n.getOffset().toString(), new ExternalPara(use1));
+											lineUseMap.put(n.getOffset().toString(), new ExternalPara(use1, methodName, sourceLineNumber, bytecodeOffset));
 										}
 									}
 								}
@@ -644,7 +684,7 @@ public class InterRe {
 									if(regionDef.get(use))
 										lineUseMap.put(n.getOffset().toString(), new InternalVar(use));
 									else
-										lineUseMap.put(n.getOffset().toString(), new ExternalPara(use));
+										lineUseMap.put(n.getOffset().toString(), new ExternalPara(use, methodName, sourceLineNumber, bytecodeOffset));
 								}
 						
 							}
@@ -657,8 +697,8 @@ public class InterRe {
 						{
 							try
 							{
-						char dig = (char)(Integer.parseInt(use));
-						lineUseMap.put(n.getOffset().toString(),new ConstantString(""+dig));
+								char dig = (char)(Integer.parseInt(use));
+								lineUseMap.put(n.getOffset().toString(),new ConstantString(""+dig));
 							}
 							catch(NumberFormatException e)
 							{
@@ -677,7 +717,7 @@ public class InterRe {
 					if(regionDef.get(use))
 						lineUseMap.put(n.getOffset().toString(), new InternalVar(use));
 					else
-						lineUseMap.put(n.getOffset().toString(), new ExternalPara(use));
+						lineUseMap.put(n.getOffset().toString(), new ExternalPara(use, methodName, sourceLineNumber, bytecodeOffset));
 				}
 				else
 				{		
@@ -757,7 +797,7 @@ public class InterRe {
 				for(Variable v: fromOtherMethod)
 				{
 		
-					temp.add(replaceExternal(v,actualNode.getUseBoxes()));
+					temp.add(replaceExternal(v,actualNode.getUseBoxes(), actualNode));
 				}
 				
 				if(!temp.isEmpty())
@@ -765,13 +805,12 @@ public class InterRe {
 				else
 				{
 					//if the method return an String but we don't have the summary for that method, return method name.
-					if(actualNode.getUseBoxes().get(0).getValue().getType().toString().equals("java.lang.String"))
+					Type t = actualNode.getUseBoxes().get(0).getValue().getType();
+					if(t.toString().equals("java.lang.String") || t.toString().equals("java.lang.CharSequence"))
 					{
 						//lineUseMap.put(n.getOffset().toString(), new ExternalPara("Unknown"));
-						lineUseMap.put(n.getOffset().toString(), new ExternalPara("!!!"+methodName+"@"+this.methodName+"@"+n.getOffset().toString()+"@"+actualNode.getDefBoxes().get(0).getValue().toString()+"!!!"));
+						lineUseMap.put(n.getOffset().toString(), new ExternalPara("method sig:"+methodName, this.methodName, sourceLineNumber, bytecodeOffset));
 					}
-				
-					
 				}
 				//if it calls some api, save the node for later use
 				String signature = methodName;
@@ -795,9 +834,8 @@ public class InterRe {
 			//b0 = 1,$i1 = b0 + 1
 			else
 			{
-				lineUseMap.put(n.getOffset().toString(), new ExternalPara("Unknown"));
-			//	System.out.println("case missing: "+ actualNode.toString());
-			//	System.out.println(actualNode.getDefBoxes()+"     "+actualNode.getUseBoxes());
+				if(!lineUseMap.containsKey(n.getOffset().toString()))
+					lineUseMap.put(n.getOffset().toString(), new ExternalPara("Unknown", methodName, sourceLineNumber, bytecodeOffset));
 			}
 			
 
@@ -815,7 +853,7 @@ public class InterRe {
 				else
 				{
 					if(regionDef.get(returnNodeName)==null)
-						returnVarNodeAndName.put(n, new ExternalPara("Unknown@NODEF"));
+						returnVarNodeAndName.put(n, new ExternalPara("Unknown@NODEF", methodName, sourceLineNumber, bytecodeOffset));
 					else
 					{
 					if(regionDef.get(returnNodeName))
@@ -823,7 +861,7 @@ public class InterRe {
 					
 					else
 					{	//IT SHOULD BE DEAD CODE
-						returnVarNodeAndName.put(n, new ExternalPara(returnNodeName));
+						returnVarNodeAndName.put(n, new ExternalPara(returnNodeName, methodName, sourceLineNumber, bytecodeOffset));
 					}
 					}
 				}
@@ -845,7 +883,9 @@ public class InterRe {
 					nameAndLabel.add(actualNode.getUseBoxes().get(0).getValue().toString());
 					nameAndLabel.add(actualNode.getUseBoxes().get(1).getValue().toString());
 				}
-				targetVarNodeAndName.put(n, nameAndLabel);
+				List<List<String>> nameAndLabelList = new ArrayList<>();
+				nameAndLabelList.add(nameAndLabel);
+				targetVarNodeAndName.put(n, nameAndLabelList);
 			
 			}
 			
@@ -870,8 +910,11 @@ public class InterRe {
 		}
 	}
 	
-	private Variable replaceExternal(Variable v,List<ValueBox> valueBox)
+	private Variable replaceExternal(Variable v,List<ValueBox> valueBox, Unit actualNode)
 	{
+		int sourceLineNumber = actualNode.getJavaSourceStartLineNumber();
+		int bytecodeOffset = getBytecodeOffset(actualNode);
+		
 		if(v instanceof ExternalPara)
 		{
 			if(((ExternalPara) v).getName().contains("@parameter"))
@@ -888,7 +931,7 @@ public class InterRe {
 				else
 				{
 					if(para.contains("parameter"))
-						return new ExternalPara(para+":"+methodName);
+						return new ExternalPara(para, methodName, sourceLineNumber, bytecodeOffset);
 					else
 						return new ConstantString(para);
 				}
@@ -903,7 +946,7 @@ public class InterRe {
 			for(Variable tmp:((Init) v).getInitVar())
 			{
 			
-				temp.add(replaceExternal(tmp,valueBox));
+				temp.add(replaceExternal(tmp,valueBox,actualNode));
 			}
 			((Init) v).setInitVar(temp);
 			return v;
@@ -916,7 +959,7 @@ public class InterRe {
 				List<Variable> tempOperand = new ArrayList<>();
 				for(Variable operand:operandList)
 				{
-					tempOperand.add( replaceExternal(operand, valueBox));
+					tempOperand.add( replaceExternal(operand, valueBox, actualNode));
 				}
 				newOperandList.add(tempOperand);
 			}
@@ -925,7 +968,7 @@ public class InterRe {
 		}
 		else if(v instanceof T)
 		{
-			((T) v).setVariable(replaceExternal(((T) v).getVariable(), valueBox));
+			((T) v).setVariable(replaceExternal(((T) v).getVariable(), valueBox, actualNode));
 			return v;
 		}
 		else
@@ -940,4 +983,15 @@ public class InterRe {
 		return false;
 	}
 	
+	public static int getBytecodeOffset(Unit unit)
+	{
+		int bytecodeOffset = -1;
+		for (Tag t : unit.getTags()) {
+			if (t instanceof BytecodeOffsetTag)
+				bytecodeOffset = ((BytecodeOffsetTag) t).getBytecodeOffset();
+		}
+		if(bytecodeOffset == -1)
+			bytecodeOffset = unit.hashCode();
+		return bytecodeOffset;
+	}
 }
