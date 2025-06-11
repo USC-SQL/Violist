@@ -19,7 +19,7 @@ https://dl.acm.org/doi/10.1145/3460319.3464818
 ```
 
 # Current Version
-This version contains a precise interpreter. The unknown values are marked with placeholders (@Uknown@METHOD,etc). They can be treated as any string, i.e., .*
+The latest version available is the version of Violist that was updated and improved for the purposes of the SAND paper. 
 
 # Run
 Command line: java -jar Violist.jar example/config.txt
