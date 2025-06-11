@@ -1,12 +1,7 @@
 package usc.sql.string;
 
-import polyglot.ast.If;
+
 import soot.*;
-import soot.jimple.toolkits.callgraph.CHATransformer;
-import soot.jimple.toolkits.callgraph.CallGraph;
-import soot.util.Chain;
-import soot.util.HashChain;
-import CallGraph.StringCallGraph;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -17,7 +12,7 @@ public class AndroidMain {
 	public static void main(String[] args) {
         try {
 			String content = new String(Files.readAllBytes(Paths.get(args[0])));
-			String[] configs = content.split("\n");
+			String[] configs = content.split(System.lineSeparator());
 			String androidJar = configs[0].split("=")[1];
 			String apkFolder = configs[1].split("=")[1];
 			String apkName = "/"+configs[2].split("=")[1];
