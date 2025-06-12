@@ -45,12 +45,12 @@ public class DominatorTest {
 	}
 	@Test
 	public void testSingleParentDominates1() {// if one node has only one parent, its parent should dominate itself
-		SingleParentDominatesChecker("./target/classes","usc/sql/string/testcase/TestCase1.class","<usc.sql.string.testcase.TestCase1: void main(java.lang.String[])>");
+		SingleParentDominatesChecker("./target/classes", "usc/sql/violist/string/testcase/TestCase1.class","<usc.sql.string.testcase.TestCase1: void main(java.lang.String[])>");
 
 	}
 	@Test
 	public void testSingleParentDominates2() {// if one node has only one parent, its parent should dominate itself
-		SingleParentDominatesChecker("./target/classes","usc/sql/string/testcase/Switch.class","<usc.sql.string.testcase.Switch: void main(java.lang.String[])>");
+		SingleParentDominatesChecker("./target/classes", "usc/sql/violist/string/testcase/Switch.class","<usc.sql.string.testcase.Switch: void main(java.lang.String[])>");
 
 	}
 	private void MultiParentNotDominatesChecker(String s1,String s2, String s3)
@@ -94,12 +94,12 @@ public class DominatorTest {
 	}
 	@Test
 	public void testMultiParentNotDominates1() {// if one node has more than one parents, one of its parent should not dominate the child
-		MultiParentNotDominatesChecker("./target/classes","usc/sql/string/testcase/TestCase1.class","<usc.sql.string.testcase.TestCase1: void main(java.lang.String[])>");
+		MultiParentNotDominatesChecker("./target/classes", "usc/sql/violist/string/testcase/TestCase1.class","<usc.sql.string.testcase.TestCase1: void main(java.lang.String[])>");
 
 	}
 	@Test
 	public void testMultiParentNotDominates2() {// if one node has more than one parents, one of its parent should not dominate the child
-		MultiParentNotDominatesChecker("./target/classes","usc/sql/string/testcase/Switch.class","<usc.sql.string.testcase.Switch: void main(java.lang.String[])>");
+		MultiParentNotDominatesChecker("./target/classes", "usc/sql/violist/string/testcase/Switch.class","<usc.sql.string.testcase.Switch: void main(java.lang.String[])>");
 
 	}
 	public void EntryDominatesAllChecker(String s1,String s2, String s3)
@@ -122,11 +122,11 @@ public class DominatorTest {
 	}
 	@Test
 	public void testEntryDominatesAll1() {// entry dominates all nodes
-		EntryDominatesAllChecker("./target/classes","usc/sql/string/testcase/TestCase1.class","<usc.sql.string.testcase.TestCase1: void main(java.lang.String[])>");
+		EntryDominatesAllChecker("./target/classes", "usc/sql/violist/string/testcase/TestCase1.class","<usc.sql.string.testcase.TestCase1: void main(java.lang.String[])>");
 	}
 	@Test
 	public void testEntryDominatesAll2() {// entry dominates all nodes
-		EntryDominatesAllChecker("./target/classes","usc/sql/string/testcase/Switch.class","<usc.sql.string.testcase.Switch: void main(java.lang.String[])>");
+		EntryDominatesAllChecker("./target/classes", "usc/sql/violist/string/testcase/Switch.class","<usc.sql.string.testcase.Switch: void main(java.lang.String[])>");
 	}
 	@Test
 
@@ -135,7 +135,7 @@ public class DominatorTest {
 		Map<String, CFGInterface> result = BuildCFGs
 				.buildCFGs(
 						"./target/classes",
-						"usc/sql/string/testcase/TestCase1.class");
+                        "usc/sql/violist/string/testcase/TestCase1.class");
 		CFGInterface cfg = result
 				.get("<usc.sql.string.testcase.TestCase1: void main(java.lang.String[])>");
 		
@@ -171,7 +171,7 @@ public class DominatorTest {
 		Map<String, CFGInterface> result = BuildCFGs
 				.buildCFGs(
 						"./target/classes",
-						"usc/sql/string/testcase/Switch.class");
+                        "usc/sql/violist/string/testcase/Switch.class");
 		CFGInterface cfg = result
 				.get("<usc.sql.string.testcase.Switch: void main(java.lang.String[])>");
 		

@@ -29,7 +29,7 @@ public class ReachingDefinitionTest {
 		Map<String, CFGInterface> result = BuildCFGs
 				.buildCFGs(
 						"./target/classes",
-						"usc/sql/string/testcase/TestCFG.class");
+                        "usc/sql/violist/string/testcase/TestCFG.class");
 		cfg = result
 				.get("<usc.sql.string.testcase.TestCFG: void main(java.lang.String[])>");
 		

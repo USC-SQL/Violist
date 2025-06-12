@@ -87,7 +87,7 @@ public class InterpreterTest {
 		o.add("cbaacbcbaacbaacaaccbaacbcbaacbcbaacbcbaacbaacaaccbaacbcbaacbaacaaccbaacbcaacaaccbaacbccbaacbcbaacbaacaaccbaacbcbaacbcbaacbcbaacbaacaaccbaacbcbaacbcbaacbcbaacbaacaaccbaacbcbaacbcbaacbc");
 		Map<String,List<String>> map = new HashMap<>();
 		map.put("\"CircleLoop\"", o);
-		InterpreterChecker("./target/classes","usc/sql/string/testcase/CircleLoop.class","<usc.sql.string.testcase.CircleLoop: void main(java.lang.String[])>", "", 3, map );
+		InterpreterChecker("./target/classes", "usc/sql/violist/string/testcase/CircleLoop.class","<usc.sql.string.testcase.CircleLoop: void main(java.lang.String[])>", "", 3, map );
 
 	}
 	@Test
@@ -99,7 +99,7 @@ public class InterpreterTest {
 		o.add("ababba");
 		Map<String,List<String>> map = new HashMap<>();
 		map.put("\"NestLoop\"", o);
-		InterpreterChecker("./target/classes","usc/sql/string/testcase/NestLoop.class","<usc.sql.string.testcase.NestLoop: void main(java.lang.String[])>", "", 3, map );
+		InterpreterChecker("./target/classes", "usc/sql/violist/string/testcase/NestLoop.class","<usc.sql.string.testcase.NestLoop: void main(java.lang.String[])>", "", 3, map );
 
 	}
 

@@ -14,7 +14,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import usc.sql.ir.*;
 import usc.sql.string.LayerRegion;
 import usc.sql.string.ReachingDefinition;
 import usc.sql.string.Translator;

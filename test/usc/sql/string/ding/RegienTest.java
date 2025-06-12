@@ -55,22 +55,22 @@ public class RegienTest {
 	}
 	@Test
 	public void testNumberofRegienNodes1() {
-		int num=GetAllRegionNodes("./target/classes","usc/sql/string/testcase/TestCase1.class","<usc.sql.string.testcase.TestCase1: void main(java.lang.String[])>").size();
+		int num=GetAllRegionNodes("./target/classes", "usc/sql/violist/string/testcase/TestCase1.class","<usc.sql.string.testcase.TestCase1: void main(java.lang.String[])>").size();
 		assertTrue(num==4);
 	}
 	@Test
 	public void testNumberofRegienNodes2() {
-		int num=GetAllRegionNodes("./target/classes","usc/sql/string/testcase/TestCase2.class","<usc.sql.string.testcase.TestCase2: void main(java.lang.String[])>").size();
+		int num=GetAllRegionNodes("./target/classes", "usc/sql/violist/string/testcase/TestCase2.class","<usc.sql.string.testcase.TestCase2: void main(java.lang.String[])>").size();
 		assertTrue(num==6);
 	}
 	@Test
 	public void testNumberofRegienNodes3() {
-		int num=GetAllRegionNodes("./target/classes","usc/sql/string/testcase/Switch.class","<usc.sql.string.testcase.Switch: void main(java.lang.String[])>").size();
+		int num=GetAllRegionNodes("./target/classes", "usc/sql/violist/string/testcase/Switch.class","<usc.sql.string.testcase.Switch: void main(java.lang.String[])>").size();
 		assertTrue(num==1);
 	}
 	@Test
 	public void testNumberofRegienNodes4() {
-		int num=GetAllRegionNodes("./target/classes","usc/sql/string/testcase/TestCase3.class","<usc.sql.string.testcase.TestCase3: void main(java.lang.String[])>").size();
+		int num=GetAllRegionNodes("./target/classes", "usc/sql/violist/string/testcase/TestCase3.class","<usc.sql.string.testcase.TestCase3: void main(java.lang.String[])>").size();
 		assertTrue(num==9);
 	}
 
@@ -109,15 +109,15 @@ public class RegienTest {
 	}
 	@Test
 	public void testRegienNodesTraverse1() {
-		RegienNodesTraverseChecker("./target/classes","usc/sql/string/testcase/TestCase1.class","<usc.sql.string.testcase.TestCase1: void main(java.lang.String[])>");
+		RegienNodesTraverseChecker("./target/classes", "usc/sql/violist/string/testcase/TestCase1.class","<usc.sql.string.testcase.TestCase1: void main(java.lang.String[])>");
 	}
 	@Test
 	public void testRegienNodesTraverse2() {
-		RegienNodesTraverseChecker("./target/classes","usc/sql/string/testcase/TestCase2.class","<usc.sql.string.testcase.TestCase2: void main(java.lang.String[])>");
+		RegienNodesTraverseChecker("./target/classes", "usc/sql/violist/string/testcase/TestCase2.class","<usc.sql.string.testcase.TestCase2: void main(java.lang.String[])>");
 	}
 	@Test
 	public void testRegienNodesTraverse3() {
-		RegienNodesTraverseChecker("./target/classes","usc/sql/string/testcase/TestCase3.class","<usc.sql.string.testcase.TestCase3: void main(java.lang.String[])>");
+		RegienNodesTraverseChecker("./target/classes", "usc/sql/violist/string/testcase/TestCase3.class","<usc.sql.string.testcase.TestCase3: void main(java.lang.String[])>");
 	}
 	public void CompareTemplate(int[] template,Set<RegionNode> all)
 	{
@@ -136,26 +136,26 @@ public class RegienTest {
 	}
 	@Test
 	public void testRegienNodesInstruction1() {
-		Set<RegionNode> all=GetAllRegionNodes("./target/classes","usc/sql/string/testcase/TestCase1.class","<usc.sql.string.testcase.TestCase1: void main(java.lang.String[])>");
+		Set<RegionNode> all=GetAllRegionNodes("./target/classes", "usc/sql/violist/string/testcase/TestCase1.class","<usc.sql.string.testcase.TestCase1: void main(java.lang.String[])>");
 		int[] template={7,7,17,36};
 		CompareTemplate(template,all);
 	}
 	@Test
 	public void testRegienNodesInstruction2() {
-		Set<RegionNode> all=GetAllRegionNodes("./target/classes","usc/sql/string/testcase/TestCase2.class","<usc.sql.string.testcase.TestCase2: void main(java.lang.String[])>");
+		Set<RegionNode> all=GetAllRegionNodes("./target/classes", "usc/sql/violist/string/testcase/TestCase2.class","<usc.sql.string.testcase.TestCase2: void main(java.lang.String[])>");
 		int[] template={7,7,9,28,38,57};
 		CompareTemplate(template,all);
 	}
 	@Test
 	public void testRegienNodesInstruction3() {
-		Set<RegionNode> all=GetAllRegionNodes("./target/classes","usc/sql/string/testcase/Switch.class","<usc.sql.string.testcase.Switch: void main(java.lang.String[])>");
+		Set<RegionNode> all=GetAllRegionNodes("./target/classes", "usc/sql/violist/string/testcase/Switch.class","<usc.sql.string.testcase.Switch: void main(java.lang.String[])>");
 		int[] template={37};
 		CompareTemplate(template,all);
 
 	}
 	@Test
 	public void testRegienNodesInstruction4() {
-		Set<RegionNode> all=GetAllRegionNodes("./target/classes","usc/sql/string/testcase/TestCase3.class","<usc.sql.string.testcase.TestCase3: void main(java.lang.String[])>");
+		Set<RegionNode> all=GetAllRegionNodes("./target/classes", "usc/sql/violist/string/testcase/TestCase3.class","<usc.sql.string.testcase.TestCase3: void main(java.lang.String[])>");
 		int[] template={7,7,7,9,9,17,71,81,100};
 		CompareTemplate(template,all);
 
@@ -191,23 +191,23 @@ public class RegienTest {
 	}
 	@Test
 	public void testRegienTreeDepth1() {
-		int depth=RegionTreeDepthChecker("./target/classes","usc/sql/string/testcase/TestCase1.class","<usc.sql.string.testcase.TestCase1: void main(java.lang.String[])>");
+		int depth=RegionTreeDepthChecker("./target/classes", "usc/sql/violist/string/testcase/TestCase1.class","<usc.sql.string.testcase.TestCase1: void main(java.lang.String[])>");
 		assertTrue(depth==3);
 	}
 	@Test
 	public void testRegienTreeDepth2() {
-		int depth=RegionTreeDepthChecker("./target/classes","usc/sql/string/testcase/TestCase2.class","<usc.sql.string.testcase.TestCase2: void main(java.lang.String[])>");
+		int depth=RegionTreeDepthChecker("./target/classes", "usc/sql/violist/string/testcase/TestCase2.class","<usc.sql.string.testcase.TestCase2: void main(java.lang.String[])>");
 		assertTrue(depth==4);
 	}
 	@Test
 	public void testRegienTreeDepth3() {
-		int depth=RegionTreeDepthChecker("./target/classes","usc/sql/string/testcase/Switch.class","<usc.sql.string.testcase.Switch: void main(java.lang.String[])>");
+		int depth=RegionTreeDepthChecker("./target/classes", "usc/sql/violist/string/testcase/Switch.class","<usc.sql.string.testcase.Switch: void main(java.lang.String[])>");
 		assertTrue(depth==1);
 
 	}
 	@Test
 	public void testRegienTreeDepth4() {
-		int depth=RegionTreeDepthChecker("./target/classes","usc/sql/string/testcase/TestCase3.class","<usc.sql.string.testcase.TestCase3: void main(java.lang.String[])>");
+		int depth=RegionTreeDepthChecker("./target/classes", "usc/sql/violist/string/testcase/TestCase3.class","<usc.sql.string.testcase.TestCase3: void main(java.lang.String[])>");
 		assertTrue(depth==4);
 
 	}
@@ -229,26 +229,26 @@ public class RegienTest {
 	}
 	@Test
 	public void testRegienTreeFirstLayer1() {
-		Set<RegionNode> all=GetRegionTreeFirstLayer("./target/classes","usc/sql/string/testcase/TestCase1.class","<usc.sql.string.testcase.TestCase1: void main(java.lang.String[])>");
+		Set<RegionNode> all=GetRegionTreeFirstLayer("./target/classes", "usc/sql/violist/string/testcase/TestCase1.class","<usc.sql.string.testcase.TestCase1: void main(java.lang.String[])>");
 		int[] template={7,17};
 		CompareTemplate(template,all);
 	}
 	@Test
 	public void testRegienTreeFirstLayer2() {
-		Set<RegionNode> all=GetRegionTreeFirstLayer("./target/classes","usc/sql/string/testcase/TestCase2.class","<usc.sql.string.testcase.TestCase2: void main(java.lang.String[])>");
+		Set<RegionNode> all=GetRegionTreeFirstLayer("./target/classes", "usc/sql/violist/string/testcase/TestCase2.class","<usc.sql.string.testcase.TestCase2: void main(java.lang.String[])>");
 		int[] template={7,38};
 		CompareTemplate(template,all);
 	}
 	@Test
 	public void testRegienTreeFirstLayer3() {
-		Set<RegionNode> all=GetRegionTreeFirstLayer("./target/classes","usc/sql/string/testcase/Switch.class","<usc.sql.string.testcase.Switch: void main(java.lang.String[])>");
+		Set<RegionNode> all=GetRegionTreeFirstLayer("./target/classes", "usc/sql/violist/string/testcase/Switch.class","<usc.sql.string.testcase.Switch: void main(java.lang.String[])>");
 		int[] template={};
 		CompareTemplate(template,all);
 
 	}
 	@Test
 	public void testRegienTreeFirstLayer4() {
-		Set<RegionNode> all=GetRegionTreeFirstLayer("./target/classes","usc/sql/string/testcase/TestCase3.class","<usc.sql.string.testcase.TestCase3: void main(java.lang.String[])>");
+		Set<RegionNode> all=GetRegionTreeFirstLayer("./target/classes", "usc/sql/violist/string/testcase/TestCase3.class","<usc.sql.string.testcase.TestCase3: void main(java.lang.String[])>");
 		int[] template={7,81};
 		CompareTemplate(template,all);
 
@@ -266,7 +266,7 @@ public class RegienTest {
 	}
 	@Test
 	public void testRegienTreeTopology1() {
-		Set<RegionNode> all=GetAllRegionNodes("./target/classes","usc/sql/string/testcase/TestCase1.class","<usc.sql.string.testcase.TestCase1: void main(java.lang.String[])>");
+		Set<RegionNode> all=GetAllRegionNodes("./target/classes", "usc/sql/violist/string/testcase/TestCase1.class","<usc.sql.string.testcase.TestCase1: void main(java.lang.String[])>");
 		for(RegionNode rn:all)
 		{
 			//System.out.println(rn.getNodeList().size());
@@ -289,7 +289,7 @@ public class RegienTest {
 	}
 	@Test
 	public void testRegienTreeTopology2() {
-		Set<RegionNode> all=GetAllRegionNodes("./target/classes","usc/sql/string/testcase/TestCase2.class","<usc.sql.string.testcase.TestCase2: void main(java.lang.String[])>");
+		Set<RegionNode> all=GetAllRegionNodes("./target/classes", "usc/sql/violist/string/testcase/TestCase2.class","<usc.sql.string.testcase.TestCase2: void main(java.lang.String[])>");
 		for(RegionNode rn:all)
 		{
 			//System.out.println(rn.getNodeList().size());
@@ -324,7 +324,7 @@ public class RegienTest {
 	}
 	@Test
 	public void testRegienTreeTopology3() {
-		Set<RegionNode> all=GetAllRegionNodes("./target/classes","usc/sql/string/testcase/TestCase3.class","<usc.sql.string.testcase.TestCase3: void main(java.lang.String[])>");
+		Set<RegionNode> all=GetAllRegionNodes("./target/classes", "usc/sql/violist/string/testcase/TestCase3.class","<usc.sql.string.testcase.TestCase3: void main(java.lang.String[])>");
 		for(RegionNode rn:all)
 		{
 			//System.out.println(rn.getNodeList().size());
