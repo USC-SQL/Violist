@@ -9,8 +9,11 @@
         <graphs.version>1.0</graphs.version>
         <soot.version>3.3.0</soot.version>
         <junit.version>4.13.1</junit.version>
+        <commons-io.version>2.19.0</commons-io.version>
         <maven.source.version>1.8</maven.source.version>
         <maven.target.version>1.8</maven.target.version>
+        <maven.test.skip>true</maven.test.skip>
+        <jar.main>usc.sql.violist.drivers.AndroidMain</jar.main>
     </properties>
 
     <dependencies>
@@ -29,6 +32,11 @@
             <groupId>edu.usc.sql</groupId>
             <artifactId>graphs</artifactId>
             <version>${graphs.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>${commons-io.version}</version>
         </dependency>
     </dependencies>
 
@@ -91,7 +99,7 @@
                             <archive>
                                 <manifest>
                                     <mainClass>
-                                        usc.sql.violist.drivers.AndroidMain
+                                        ${jar.main}
                                     </mainClass>
                                 </manifest>
                             </archive>
@@ -104,7 +112,5 @@
             </plugin>
         </plugins>
     </build>
-
-
 
 </project>

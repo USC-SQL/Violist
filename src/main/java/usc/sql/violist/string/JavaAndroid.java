@@ -12,6 +12,7 @@ import CallGraph.NewNode;
 import CallGraph.StringCallGraph;
 import SootEvironment.AndroidApp;
 import SootEvironment.JavaApp;
+import org.apache.commons.io.FileUtils;
 import soot.*;
 import soot.jimple.Stmt;
 import soot.jimple.internal.ImmediateBox;
@@ -28,6 +29,7 @@ import usc.sql.violist.ir.Variable;
 import edu.usc.sql.graphs.Node;
 import edu.usc.sql.graphs.NodeInterface;
 import edu.usc.sql.graphs.cfg.CFGInterface;
+import usc.sql.violist.util.ViolistConfiguration;
 
 public class JavaAndroid {
 	
@@ -39,6 +41,7 @@ public class JavaAndroid {
  	private Map<String,ReachingDefinition> rds = new HashMap();
 	private Map<String,CFGInterface> cfgs = new HashMap();
 	private StringCallGraph callGraph;
+
 	public JavaAndroid(String rtjar,String appfolder,String classlist,String apk,Map<String,List<Integer>> targetSignature, int maxloop)
 	{		
 		this.targetSignature = targetSignature;
@@ -48,12 +51,13 @@ public class JavaAndroid {
 		InterpretCheckerAndroid(appfolder);
 		
 	}
+
 	public JavaAndroid(String rtjar,String appfolder,String classlist,Map<String,List<Integer>> targetSignature, int maxloop)
 	{
 		this.targetSignature = targetSignature;
 		this.maxloop = maxloop;
 		InterpretCheckerJava(rtjar,appfolder,appfolder+classlist,
-				appfolder+"/MethodSummary/",appfolder+"/Output/");
+				ViolistConfiguration.getAppMethodSummaryDir(appfolder),ViolistConfiguration.getAppOutputDir(appfolder));
 	}
 	public JavaAndroid(Map<String,List<Integer>> targetSignature, int maxloop, String outputPath)
 	{
@@ -102,7 +106,7 @@ public class JavaAndroid {
 		Map<String,Translator> tMap = new HashMap<>();
 
 
-		String summaryFolder = "MethodSummary/";
+		String summaryFolder = ViolistConfiguration.METHOD_SUMMARY_OUTPUT_DIR;
 		File sFolder = createSummaryFolder(summaryFolder);
 
 		//System.out.println("Target Signatures and parameters: "+targetSignature);
@@ -165,7 +169,7 @@ public class JavaAndroid {
 			analysisResult.put(callPathId, possibleValues);
 
     	}
-    	
+
 		removeSummaryFolder(sFolder);
 	}
 
@@ -770,9 +774,10 @@ public class JavaAndroid {
 		 if (!sFolder.exists()) {
 		     try{
 		    	 sFolder.mkdir();
+				 System.out.println("Creating " + sFolder);
 		     } 
 		     catch(SecurityException se){
-		    	 System.out.println("Create a folder named : \"MethodSummary\" under the app folder");
+		    	 System.out.println("Create a folder named " + summaryFolder + " under the app folder");
 		     }
 		 }
 		 else
@@ -795,6 +800,8 @@ public class JavaAndroid {
 			}
 		}
 		sFolder.delete();
+		// FileUtils.deleteDirectory(sFolder);
+
 	}
 	
 	public Map<String,Integer> getOperations(Set<Variable> vars)
@@ -1003,7 +1010,6 @@ public class JavaAndroid {
 	
 	private void InterpretCheckerJava(String arg0,String arg1,String arg2,String summaryFolder,String wfolder)
 	{
-		//"/home/yingjun/Documents/StringAnalysis/MethodSummary/"
 		//"Usage: rt.jar app_folder classlist.txt"
 
 		JavaApp App;
@@ -1036,7 +1042,7 @@ public class JavaAndroid {
 		         result = true;
 		     } 
 		     catch(SecurityException se){
-		    	 System.out.println("Create a folder named : \"MethodSummary\" under the app folder");
+		    	 System.out.println("Create a folder named  " + summaryFolder + "  under the app folder");
 		     }        
 		     if(result) {    
 		         System.out.println("DIR created");  

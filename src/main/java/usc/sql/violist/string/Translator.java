@@ -18,7 +18,7 @@ import usc.sql.violist.ir.*;
 import edu.usc.sql.graphs.EdgeInterface;
 import edu.usc.sql.graphs.Node;
 import edu.usc.sql.graphs.NodeInterface;
-import usc.sql.violist.ir.*;
+
 
 public class Translator {
 	//private List<NodeInterface> allNode;
