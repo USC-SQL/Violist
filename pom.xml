@@ -10,6 +10,7 @@
         <soot.version>3.3.0</soot.version>
         <junit.version>4.13.1</junit.version>
         <commons-io.version>2.19.0</commons-io.version>
+        <commons-io.configuration.version>2.12.0</commons-io.configuration.version>
         <maven.source.version>1.8</maven.source.version>
         <maven.target.version>1.8</maven.target.version>
         <maven.test.skip>true</maven.test.skip>
@@ -37,6 +38,17 @@
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
             <version>${commons-io.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-configuration2</artifactId>
+            <version>${commons-io.configuration.version}</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/commons-beanutils/commons-beanutils -->
+        <dependency>
+            <groupId>commons-beanutils</groupId>
+            <artifactId>commons-beanutils</artifactId>
+            <version>1.11.0</version>
         </dependency>
     </dependencies>
 

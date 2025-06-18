@@ -3,6 +3,7 @@ package usc.sql.violist.drivers;
 
 import soot.*;
 import usc.sql.violist.string.JavaAndroid;
+import usc.sql.violist.util.ViolistConfiguration;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -12,31 +13,16 @@ import java.util.*;
 public class AndroidMain {
 
 	public static void main(String[] args) {
-        try {
-			String content = new String(Files.readAllBytes(Paths.get(args[0])));
-			String[] configs = content.split(System.lineSeparator());
-			String androidJar = configs[0].split("=")[1];
-			String apkFolder = configs[1].split("=")[1];
-			String apkName = "/"+configs[2].split("=")[1];
-			int loopItr = Integer.parseInt(configs[3].split("=")[1]);
-			
-			Map<String,List<Integer>> target = new HashMap<>();
-			for(int i = 4; i < configs.length; i++)
-			{
-				String[] targets = configs[4].split("@");
-				String hotspot = targets[0];
-				List<Integer> paraSet = new ArrayList<>();	
-				for(int j = 1; j < targets.length; j++)
-					paraSet.add(Integer.parseInt(targets[j]));
-				target.put(hotspot,paraSet);
-			}
+		ViolistConfiguration vc = new ViolistConfiguration(Paths.get(args[0]).toString());
+		System.out.println(vc);
+		String androidJar = vc.getAndroidJar();
+		String apkFolder = vc.getApkFolder();
+		String apkName = vc.getApkName();
+		int loopItr = vc.getLoopItr();
+		Map<String,List<Integer>> target = vc.getTargets();
 
-			String apkPath = apkFolder + apkName;
-			setupAndInvokeSoot(apkPath,androidJar,target,loopItr,apkFolder);
-
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		String apkPath = apkFolder + apkName;
+		setupAndInvokeSoot(apkPath,androidJar,target,loopItr,apkFolder);
 	}
 
 	static void setupAndInvokeSoot(String apkPath, String androidJarPath,
