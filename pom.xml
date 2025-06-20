@@ -11,6 +11,7 @@
         <junit.version>4.13.1</junit.version>
         <commons-io.version>2.19.0</commons-io.version>
         <commons-io.configuration.version>2.12.0</commons-io.configuration.version>
+        <commons-io.beanutils.version>1.11.0</commons-io.beanutils.version>
         <maven.source.version>1.8</maven.source.version>
         <maven.target.version>1.8</maven.target.version>
         <maven.test.skip>true</maven.test.skip>
@@ -44,11 +45,10 @@
             <artifactId>commons-configuration2</artifactId>
             <version>${commons-io.configuration.version}</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/commons-beanutils/commons-beanutils -->
         <dependency>
             <groupId>commons-beanutils</groupId>
             <artifactId>commons-beanutils</artifactId>
-            <version>1.11.0</version>
+            <version>${commons-io.beanutils.version}</version>
         </dependency>
     </dependencies>
 
@@ -85,18 +85,6 @@
                     </execution>
                 </executions>
             </plugin>
-<!--            <plugin>-->
-<!--                <groupId>org.apache.maven.plugins</groupId>-->
-<!--                <artifactId>maven-jar-plugin</artifactId>-->
-<!--                <version>3.2.0</version> -->
-<!--                <configuration>-->
-<!--                    <archive>-->
-<!--                        <manifest>-->
-<!--                            <mainClass>AndroidMain</mainClass>-->
-<!--                        </manifest>-->
-<!--                    </archive>-->
-<!--                </configuration>-->
-<!--            </plugin>-->
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
