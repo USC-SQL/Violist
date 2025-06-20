@@ -442,7 +442,7 @@ public class JSABenchmarkTest {
 	
 	
 	
-	String rtjar = ViolistConfiguration.RT_JAR;
+	String rtjar = null;
 	String appfolder = ViolistConfiguration.JSA_APP_FOLDER;
 	String gt = ViolistConfiguration.JSA_APP_GROUNDTRUTH_FOLDER;
 	

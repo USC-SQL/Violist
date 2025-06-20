@@ -116,7 +116,7 @@ public class BranchInterPro {
     	
 	}
 
-	String rtjar = ViolistConfiguration.RT_JAR;
+	String rtjar = null;
 	String appfolder = "/home/yingjun/Documents/StringAnalysis/Testing/";	
 	String gt = "/home/yingjun/Documents/eclipse/workspace/StringTestCases/groundtruth/";
 	

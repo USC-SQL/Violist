@@ -215,7 +215,7 @@ public class ToyAppTest {
     	System.out.println("Total Trans: "+ totalTranslate);
     	System.out.println("Total Interp: "+ totalInterpret);
 	}
-	String rtjar = ViolistConfiguration.RT_JAR;
+	String rtjar = null;
 	String appfolder = "/home/yingjun/Documents/StringAnalysis/Testing";	
 	String gt = "/home/yingjun/Documents/eclipse/workspace/StringTestCases/groundtruth/";
 	

@@ -532,7 +532,7 @@ public class RealJavaCaseTest {
 	
 	
 	
-	String rtjar = ViolistConfiguration.RT_JAR;
+	String rtjar = null;
 	String appfolder = "/home/yingjun/Documents/StringAnalysis/bookstore";	
 	String gt = "/home/yingjun/Documents/StringAnalysis/bookstore/groundtruth/";
 	
