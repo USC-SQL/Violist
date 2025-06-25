@@ -27,7 +27,7 @@ Violist is structured as a Maven project. To build the project, run ```mvn packa
 
 # Configuration
 
-The configuration file uses the [Apache Commons-IO Configuration format](https://commons.apache.org/proper/commons-configuration/).  The options are described below. See [an example in the repo](example/config.properties)  Developers can add new options to the configuration file to provide additional properties needed by their custom interpreters.  Interactions with the configuration file are encapsulated in the [ViolistConfiguration](src/main/java/usc/sq/violist/util/ViolistConfiguration.java) class.
+The configuration file uses the [Apache Commons-IO Configuration format](https://commons.apache.org/proper/commons-configuration/).  The options are described below. See [an example in the repo](example/config.properties).  Developers can add new options to the configuration file to provide additional properties needed by their custom interpreters.  Interactions with the configuration file are encapsulated in the [ViolistConfiguration](src/main/java/usc/sql/violist/util/ViolistConfiguration.java) class.
 
 androidJarPath: path to location of an Android jar
 parentFolderOfApk: path to parent folder of the Android APK to analyze
