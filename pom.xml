@@ -72,7 +72,7 @@
                     <artifactId>graphs</artifactId>
                     <version>${graphs.version}</version>
                     <packaging>jar</packaging>
-                    <file>${basedir}/graphs.jar</file>
+                    <file>${basedir}/graphs-${graphs.version}.jar</file>
                     <generatePom>true</generatePom>
                 </configuration>
                 <executions>
